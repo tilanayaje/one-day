@@ -32,7 +32,10 @@ function startServer(distPath, port) {
 }
 
 async function createWindow() {
-  const distPath = path.join(__dirname, '../dist');
+  const distPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'dist')
+    : path.join(__dirname, '../dist');
+
   const port = 19006;
   await startServer(distPath, port);
 

@@ -5,6 +5,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { TouchableOpacity, Text } from 'react-native';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { supabase } from './src/db/supabase';
+import { Platform } from 'react-native';
+
 import {
   useFonts,
   Raleway_400Regular,
@@ -87,7 +89,7 @@ function AppNavigator() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded] = useFonts(Platform.OS === 'web' ? {} : {
     Raleway_400Regular,
     Raleway_600SemiBold,
     Raleway_700Bold,
