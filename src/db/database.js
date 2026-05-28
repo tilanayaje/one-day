@@ -1,102 +1,145 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
-const KEYS = {
-  habits:      '@habits',
-  completions: '@completions',
-  journal:     '@journal',
-  gratitude:   '@gratitude',
-};
-
-async function load(key) {
-  const raw = await AsyncStorage.getItem(key);
-  return raw ? JSON.parse(raw) : null;
+// --- Auth ---
+export async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+  if (error) throw error;
 }
 
-async function save(key, value) {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
+export async function signOut() {
+  await supabase.auth.signOut();
 }
 
-function nextId(arr) {
-  return arr.length === 0 ? 1 : Math.max(...arr.map(x => x.id)) + 1;
+export async function getSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
 }
 
 // --- Habits ---
 export async function getHabits() {
-  return (await load(KEYS.habits)) ?? [];
+  const { data, error } = await supabase
+    .from('habits')
+    .select('*')
+    .order('ord', { ascending: true });
+  if (error) throw error;
+  return data.map(h => ({ ...h, perweek: h.perweek }));
 }
 
 export async function addHabit(name, perweek, color = null) {
-  const habits = await getHabits();
-  const habit = { id: nextId(habits), name, perweek, color };
-  await save(KEYS.habits, [...habits, habit]);
-  return habit;
+  const { data: existing } = await supabase.from('habits').select('ord').order('ord', { ascending: false }).limit(1);
+  const ord = existing?.[0]?.ord ?? 0;
+  const { data, error } = await supabase
+    .from('habits')
+    .insert({ name, perweek, color, ord: ord + 1 })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function updateHabit(id, name, perweek, color = null) {
-  const habits = await getHabits();
-  const updated = habits.map(h => h.id === id ? { ...h, name, perweek, color } : h);
-  await save(KEYS.habits, updated);
+  const { error } = await supabase
+    .from('habits')
+    .update({ name, perweek, color })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteHabit(id) {
-  const habits = await getHabits();
-  await save(KEYS.habits, habits.filter(h => h.id !== id));
-  const completions = (await load(KEYS.completions)) ?? {};
-  for (const week of Object.keys(completions)) {
-    delete completions[week][id];
-  }
-  await save(KEYS.completions, completions);
+  const { error } = await supabase.from('habits').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function reorderHabits(orderedHabits) {
-  await save(KEYS.habits, orderedHabits);
+  const updates = orderedHabits.map((h, i) =>
+    supabase.from('habits').update({ ord: i }).eq('id', h.id)
+  );
+  await Promise.all(updates);
 }
 
 // --- Completions ---
 export async function getCompletionsForWeek(weekKey) {
-  const all = (await load(KEYS.completions)) ?? {};
-  return all[weekKey] ?? {};
+  const { data, error } = await supabase
+    .from('completions')
+    .select('*')
+    .eq('week_key', weekKey);
+  if (error) throw error;
+
+  const result = {};
+  for (const row of data) {
+    if (!result[row.habit_id]) result[row.habit_id] = Array(7).fill(false);
+    result[row.habit_id][row.day] = row.checked;
+  }
+  return result;
 }
 
 export async function getAllCompletions() {
-  return (await load(KEYS.completions)) ?? {};
+  const { data, error } = await supabase.from('completions').select('*');
+  if (error) throw error;
+
+  const result = {};
+  for (const row of data) {
+    if (!result[row.week_key]) result[row.week_key] = {};
+    if (!result[row.week_key][row.habit_id]) result[row.week_key][row.habit_id] = Array(7).fill(false);
+    result[row.week_key][row.habit_id][row.day] = row.checked;
+  }
+  return result;
 }
 
 export async function toggleCompletion(habitId, weekKey, day, checked) {
-  const all = (await load(KEYS.completions)) ?? {};
-  if (!all[weekKey]) all[weekKey] = {};
-  if (!all[weekKey][habitId]) all[weekKey][habitId] = Array(7).fill(false);
-  all[weekKey][habitId][day] = checked;
-  await save(KEYS.completions, all);
+  const { error } = await supabase
+    .from('completions')
+    .upsert({ habit_id: habitId, week_key: weekKey, day, checked },
+             { onConflict: 'habit_id,week_key,day' });
+  if (error) throw error;
 }
 
 // --- Journal ---
 export async function getJournalEntries() {
-  const entries = (await load(KEYS.journal)) ?? [];
-  return entries.sort((a, b) => b.date.localeCompare(a.date));
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data;
 }
 
 export async function addJournalEntry(date, title, body) {
-  const entries = (await load(KEYS.journal)) ?? [];
-  const entry = { id: nextId(entries), date, title, body };
-  await save(KEYS.journal, [...entries, entry]);
-  return entry;
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .insert({ date, title, body })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function deleteJournalEntry(id) {
-  const entries = (await load(KEYS.journal)) ?? [];
-  await save(KEYS.journal, entries.filter(e => e.id !== id));
+  const { error } = await supabase.from('journal_entries').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // --- Gratitude ---
 export async function getGratitudeEntries() {
-  const entries = (await load(KEYS.gratitude)) ?? [];
-  return entries.sort((a, b) => b.date.localeCompare(a.date));
+  const { data, error } = await supabase
+    .from('gratitude_entries')
+    .select('*')
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data;
 }
 
 export async function addGratitudeEntry(date, body) {
-  const entries = (await load(KEYS.gratitude)) ?? [];
-  const entry = { id: nextId(entries), date, body };
-  await save(KEYS.gratitude, [...entries, entry]);
-  return entry;
+  const { data, error } = await supabase
+    .from('gratitude_entries')
+    .insert({ date, body })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }

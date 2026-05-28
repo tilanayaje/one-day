@@ -1,12 +1,22 @@
 {
   "name": "habit-tracker",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "electron": "electron electron/app.cjs",
+    "build:web": "expo export --platform web",
+    "build:electron": "electron-builder"
+  },
   "dependencies": {
     "@expo-google-fonts/raleway": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.16.2",
     "@react-navigation/native": "^7.2.5",
+    "@supabase/supabase-js": "^2.106.2",
     "expo": "~56.0.5",
     "expo-font": "~56.0.5",
     "expo-sqlite": "~56.0.4",
@@ -20,13 +30,27 @@
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "^4.25.2",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "serve": "^14.2.6",
+    "serve-handler": "^6.1.7"
   },
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^26.8.1"
   },
-  "private": true
+  "build": {
+    "appId": "com.oneday.habittracker",
+    "productName": "One Day",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    }
+  }
 }
