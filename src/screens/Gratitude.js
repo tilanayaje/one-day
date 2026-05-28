@@ -1,12 +1,14 @@
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import T from '../components/T';
+import { Text } from 'react-native';
 
 export default function Gratitude() {
   const { theme } = useTheme();
   return (
     <View style={[s.container, { backgroundColor: theme.bg }]}>
-      <T style={{ fontSize: 18, color: theme.textSub }}>Daily Gratitude coming soon.</T>
+      <Text style={{ fontSize: 18, color: theme.textSub, fontFamily: 'Raleway_400Regular' }}>
+        Daily Gratitude coming soon.
+      </Text>
     </View>
   );
 }

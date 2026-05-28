@@ -1,12 +1,13 @@
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import T from '../components/T';
 
 export default function Journal() {
   const { theme } = useTheme();
   return (
     <View style={[s.container, { backgroundColor: theme.bg }]}>
-      <T style={{ fontSize: 18, color: theme.textSub }}>Journal coming soon.</T>
+      <Text style={{ fontSize: 18, color: theme.textSub, fontFamily: 'Raleway_400Regular' }}>
+        Journal coming soon.
+      </Text>
     </View>
   );
 }
