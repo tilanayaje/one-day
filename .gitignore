@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+#
+release/ 
+
 # Expo
 .expo/
 dist/
@@ -39,4 +42,5 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+/androidrelease/
+dist/
