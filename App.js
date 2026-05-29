@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Modal } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { TouchableOpacity, Text } from 'react-native';
@@ -25,11 +25,11 @@ const Tab = createBottomTabNavigator();
 
 function AppNavigator() {
   const { theme, isDark, toggleTheme } = useTheme();
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [session,      setSession]      = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    // Handle OAuth redirect tokens in URL
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
@@ -72,7 +72,10 @@ function AppNavigator() {
           tabBarActiveTintColor:   theme.accent,
           tabBarInactiveTintColor: theme.textSub,
           headerRight: () => (
-            <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 20, padding: 6 }}>
+            <TouchableOpacity
+              onPress={() => setShowSettings(true)}
+              style={{ marginRight: 20, padding: 6 }}
+            >
               <Text style={{ fontSize: 22 }}>{isDark ? '☀️' : '🌙'}</Text>
             </TouchableOpacity>
           ),
@@ -84,6 +87,100 @@ function AppNavigator() {
         <Tab.Screen name="Gratitude"  component={Gratitude} />
         <Tab.Screen name="Philosophy" component={Philosophy} />
       </Tab.Navigator>
+
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettings}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          activeOpacity={1}
+          onPress={() => setShowSettings(false)}
+        >
+          <View style={{
+            position: 'absolute',
+            top: 70,
+            right: 16,
+            backgroundColor: theme.surface,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: theme.border,
+            width: 280,
+            overflow: 'hidden',
+          }}>
+
+            {/* Profile */}
+            <View style={{
+              padding: 20,
+              borderBottomWidth: 1,
+              borderColor: theme.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+              <View style={{
+                width: 42, height: 42, borderRadius: 21,
+                backgroundColor: theme.accent,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ color: theme.accentText, fontSize: 18, fontFamily: 'Raleway_700Bold' }}>
+                  {session.user.user_metadata?.full_name?.[0] ?? '?'}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ color: theme.text, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }}
+                  numberOfLines={1}
+                >
+                  {session.user.user_metadata?.full_name ?? 'User'}
+                </Text>
+                <Text
+                  style={{ color: theme.textSub, fontFamily: 'Raleway_400Regular', fontSize: 12 }}
+                  numberOfLines={1}
+                >
+                  {session.user.email}
+                </Text>
+              </View>
+            </View>
+
+            {/* Dark Mode */}
+            <TouchableOpacity
+              onPress={toggleTheme}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 18,
+                borderBottomWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Text style={{ color: theme.text, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }}>
+                Dark Mode
+              </Text>
+              <Text style={{ fontSize: 18 }}>{isDark ? '☀️' : '🌙'}</Text>
+            </TouchableOpacity>
+
+            {/* Sign Out */}
+            <TouchableOpacity
+              onPress={async () => {
+                setShowSettings(false);
+                await supabase.auth.signOut();
+              }}
+              style={{ padding: 18 }}
+            >
+              <Text style={{ color: theme.delete, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }}>
+                Sign Out
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </NavigationContainer>
   );
 }

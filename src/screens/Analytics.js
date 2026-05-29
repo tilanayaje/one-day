@@ -67,85 +67,171 @@ function computeStats(habit, allCompletions) {
   };
 }
 
-function BarChartCustom({ data, goal, theme }) {
+function BarChart({ data, goal, theme }) {
   if (!data || data.length === 0) return null;
   const maxVal = Math.max(goal, ...data.map(d => d.count));
-  const chartHeight = 160;
+  const chartHeight = 140;
+  const barWidth = Math.min(48, Math.floor(800 / data.length) - 6);
 
   return (
     <View>
-      <Text style={{ color: theme.textSub, fontSize: 12, fontFamily: 'Raleway_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
+      <Text style={{
+        color: theme.textSub,
+        fontSize: 11,
+        fontFamily: 'Raleway_600SemiBold',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        marginBottom: 16,
+      }}>
         Weekly Completions
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: chartHeight + 24, gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: chartHeight + 28, gap: 4, flexWrap: 'nowrap' }}>
         {data.map((d, i) => {
-          const barHeight = maxVal > 0 ? (d.count / maxVal) * chartHeight : 0;
-          const goalLine = (goal / maxVal) * chartHeight;
+          const barHeight = maxVal > 0 ? Math.max(2, (d.count / maxVal) * chartHeight) : 2;
+          const goalLineY = (goal / maxVal) * chartHeight;
           const hitGoal = d.count >= goal;
           return (
-            <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: chartHeight + 24 }}>
-              <View style={{ width: '100%', height: chartHeight, justifyContent: 'flex-end', position: 'relative' }}>
-                {/* Goal line */}
+            <View key={i} style={{ width: barWidth, alignItems: 'center', justifyContent: 'flex-end', height: chartHeight + 28 }}>
+              <View style={{ width: barWidth, height: chartHeight, justifyContent: 'flex-end', position: 'relative' }}>
                 <View style={{
                   position: 'absolute',
-                  bottom: goalLine,
+                  bottom: goalLineY,
                   left: 0, right: 0,
                   height: 1,
-                  backgroundColor: '#F5C518',
-                  opacity: 0.4,
+                  backgroundColor: '#f9e2af',
+                  opacity: 0.5,
                 }} />
-                {/* Bar */}
                 <View style={{
-                  width: '80%',
+                  width: '85%',
                   alignSelf: 'center',
                   height: barHeight,
-                  backgroundColor: hitGoal ? '#F5C518' : theme.accent,
-                  borderRadius: 3,
-                  opacity: 0.9,
+                  backgroundColor: hitGoal ? '#f9e2af' : theme.accent,
+                  borderRadius: 4,
+                  opacity: 0.85,
                 }} />
               </View>
-              <Text style={{ color: theme.textSub, fontSize: 9, marginTop: 4, fontFamily: 'Raleway_400Regular' }}>
+              <Text style={{
+                color: theme.textSub,
+                fontSize: 9,
+                marginTop: 6,
+                fontFamily: 'Raleway_400Regular',
+                textAlign: 'center',
+              }}>
                 {d.week}
               </Text>
             </View>
           );
         })}
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-        <View style={{ width: 12, height: 2, backgroundColor: '#F5C518' }} />
-        <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>Goal</Text>
-        <View style={{ width: 12, height: 10, backgroundColor: '#F5C518', borderRadius: 2, marginLeft: 12 }} />
-        <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>Goal met</Text>
-        <View style={{ width: 12, height: 10, backgroundColor: theme.accent, borderRadius: 2, marginLeft: 12 }} />
-        <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>In progress</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 16, height: 1, backgroundColor: '#f9e2af' }} />
+          <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>Goal</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 10, height: 10, backgroundColor: '#f9e2af', borderRadius: 2 }} />
+          <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>Met</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 10, height: 10, backgroundColor: theme.accent, borderRadius: 2 }} />
+          <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>In progress</Text>
+        </View>
       </View>
     </View>
   );
 }
 
-function StatBox({ label, value, theme }) {
+function StatCard({ label, value, theme, accent }) {
   return (
-    <View style={[sBox.box, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[sBox.value, { color: theme.text }]}>{value}</Text>
-      <Text style={[sBox.label, { color: theme.textSub }]}>{label}</Text>
+    <View style={{
+      flex: 1,
+      minWidth: 100,
+      backgroundColor: theme.surface,
+      borderRadius: 12,
+      padding: 16,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      margin: 4,
+    }}>
+      <Text style={{
+        fontSize: 28,
+        fontFamily: 'Raleway_700Bold',
+        color: accent || theme.text,
+        marginBottom: 4,
+      }}>
+        {value}
+      </Text>
+      <Text style={{
+        fontSize: 10,
+        fontFamily: 'Raleway_600SemiBold',
+        color: theme.textSub,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        textAlign: 'center',
+      }}>
+        {label}
+      </Text>
     </View>
   );
 }
 
-const sBox = StyleSheet.create({
-  box:   { borderWidth: 1, borderRadius: 10, padding: 16, alignItems: 'center', minWidth: 110, margin: 6 },
-  value: { fontSize: 26, fontFamily: 'Raleway_700Bold', marginBottom: 4 },
-  label: { fontSize: 11, fontFamily: 'Raleway_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' },
-});
+function OverallSummary({ habits, allCompletions, theme }) {
+  let totalChecks = 0;
+  let totalGoalWeeks = 0;
+  let totalWeeks = 0;
+
+  for (const habit of habits) {
+    const weekKeys = Object.keys(allCompletions).sort();
+    for (const wk of weekKeys) {
+      const days = allCompletions[wk][habit.id] ?? [];
+      const count = days.filter(Boolean).length;
+      if (count > 0) {
+        totalChecks += count;
+        totalWeeks++;
+        if (count >= habit.perweek) totalGoalWeeks++;
+      }
+    }
+  }
+
+  const overallHitRate = totalWeeks > 0 ? Math.round((totalGoalWeeks / totalWeeks) * 100) : 0;
+
+  return (
+    <View style={{
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      padding: 24,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: theme.border,
+    }}>
+      <Text style={{
+        fontSize: 13,
+        fontFamily: 'Raleway_600SemiBold',
+        color: theme.textSub,
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        marginBottom: 16,
+      }}>
+        Overall
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <StatCard label="Total Checks" value={totalChecks} theme={theme} accent={theme.accent} />
+        <StatCard label="Habits Tracked" value={habits.length} theme={theme} />
+        <StatCard label="Overall Hit Rate" value={`${overallHitRate}%`} theme={theme} accent={overallHitRate >= 70 ? '#a6e3a1' : undefined} />
+      </View>
+    </View>
+  );
+}
 
 export default function Analytics() {
   const { theme } = useTheme();
   const s = makeStyles(theme);
 
-  const [habits, setHabits]             = useState([]);
+  const [habits, setHabits] = useState([]);
   const [allCompletions, setAllCompletions] = useState({});
-  const [expanded, setExpanded]         = useState(null);
-  const [loading, setLoading]           = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
@@ -157,50 +243,70 @@ export default function Analytics() {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
-  if (loading) return <View style={s.center}><Text style={s.muted}>Loading...</Text></View>;
-  if (habits.length === 0) return <View style={s.center}><Text style={s.muted}>No habits yet.</Text></View>;
+  if (loading) return (
+    <View style={s.center}>
+      <Text style={s.muted}>Loading...</Text>
+    </View>
+  );
+
+  if (habits.length === 0) return (
+    <View style={s.center}>
+      <Text style={s.muted}>No habits yet.</Text>
+    </View>
+  );
 
   return (
-    <ScrollView style={s.container}>
-      <Text style={s.title}>Analytics</Text>
+    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
+      <OverallSummary habits={habits} allCompletions={allCompletions} theme={theme} />
+
+      <Text style={s.sectionLabel}>Per Habit</Text>
+
       {habits.map(habit => {
         const isOpen = expanded === habit.id;
         const stats = isOpen ? computeStats(habit, allCompletions) : null;
+        const hasColor = !!habit.color;
+
         return (
-          <View key={habit.id} style={[s.card, { borderColor: theme.border }]}>
+          <View key={habit.id} style={[s.card, hasColor && { borderLeftWidth: 3, borderLeftColor: habit.color }]}>
             <TouchableOpacity
-              style={[s.cardHeader, { backgroundColor: theme.surface }]}
+              style={s.cardHeader}
               onPress={() => setExpanded(isOpen ? null : habit.id)}
+              activeOpacity={0.7}
             >
-              <Text style={s.habitName}>{habit.name}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.habitName}>{habit.name}</Text>
+                <Text style={s.habitMeta}>Goal: {habit.perweek}x / week</Text>
+              </View>
               <Text style={s.chevron}>{isOpen ? '▲' : '▼'}</Text>
             </TouchableOpacity>
 
             {isOpen && (
-              <View style={[s.cardBody, { backgroundColor: theme.bg }]}>
+              <View style={s.cardBody}>
                 {!stats ? (
                   <Text style={s.muted}>No data yet for this habit.</Text>
                 ) : (
                   <>
                     <View style={s.statRow}>
-                      <StatBox label="Total Checks"   value={stats.totalCompletions}           theme={theme} />
-                      <StatBox label="Weeks Tracked"  value={stats.weeksTracked}               theme={theme} />
-                      <StatBox label="Best Week"      value={`${stats.bestWeekCount}/${habit.perweek}`} theme={theme} />
-                      <StatBox label="Goal Hit Rate"  value={`${stats.goalHitRate}%`}          theme={theme} />
-                      <StatBox label="Cur. Streak"    value={`${stats.currentStreak}w`}        theme={theme} />
-                      <StatBox label="Best Streak"    value={`${stats.bestStreak}w`}           theme={theme} />
+                      <StatCard label="Total Checks"  value={stats.totalCompletions}                    theme={theme} />
+                      <StatCard label="Weeks Tracked" value={stats.weeksTracked}                        theme={theme} />
+                      <StatCard label="Best Week"     value={`${stats.bestWeekCount}/${habit.perweek}`} theme={theme} />
+                      <StatCard label="Hit Rate"      value={`${stats.goalHitRate}%`}                   theme={theme} accent={stats.goalHitRate >= 70 ? '#a6e3a1' : undefined} />
+                      <StatCard label="Streak"        value={`${stats.currentStreak}w`}                 theme={theme} accent={stats.currentStreak > 0 ? theme.accent : undefined} />
+                      <StatCard label="Best Streak"   value={`${stats.bestStreak}w`}                    theme={theme} />
                     </View>
 
                     <View style={s.dateRow}>
-                      <Text style={s.dateText}>
-                        <Text style={s.dateLabel}>First check: </Text>{stats.firstCheck ?? '—'}
-                      </Text>
-                      <Text style={s.dateText}>
-                        <Text style={s.dateLabel}>Most recent: </Text>{stats.lastCheck ?? '—'}
-                      </Text>
+                      <View style={s.datePill}>
+                        <Text style={s.dateLabel}>First check</Text>
+                        <Text style={s.dateValue}>{stats.firstCheck ?? '—'}</Text>
+                      </View>
+                      <View style={s.datePill}>
+                        <Text style={s.dateLabel}>Most recent</Text>
+                        <Text style={s.dateValue}>{stats.lastCheck ?? '—'}</Text>
+                      </View>
                     </View>
 
-                    <BarChartCustom data={stats.chartData} goal={habit.perweek} theme={theme} />
+                    <BarChart data={stats.chartData} goal={habit.perweek} theme={theme} />
                   </>
                 )}
               </View>
@@ -208,24 +314,27 @@ export default function Analytics() {
           </View>
         );
       })}
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
 function makeStyles(t) {
   return StyleSheet.create({
-    container:  { flex: 1, padding: 32, backgroundColor: t.bg },
-    center:     { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.bg },
-    title:      { fontSize: 28, fontFamily: 'Raleway_700Bold', color: t.text, marginBottom: 24, letterSpacing: 0.5 },
-    card:       { borderWidth: 1, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
-    habitName:  { fontSize: 17, fontFamily: 'Raleway_600SemiBold', color: t.text, letterSpacing: 0.3 },
-    chevron:    { fontSize: 12, color: t.textSub },
-    cardBody:   { padding: 20 },
-    statRow:    { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 },
-    dateRow:    { flexDirection: 'row', gap: 24, marginBottom: 24 },
-    dateLabel:  { fontFamily: 'Raleway_600SemiBold', color: t.textSub, fontSize: 14 },
-    dateText:   { fontFamily: 'Raleway_400Regular', color: t.text, fontSize: 14 },
-    muted:      { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 16 },
+    container:    { flex: 1, padding: 24, backgroundColor: t.bg },
+    center:       { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.bg },
+    sectionLabel: { fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: t.textSub, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 12 },
+    card:         { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: t.border, overflow: 'hidden' },
+    cardHeader:   { flexDirection: 'row', alignItems: 'center', padding: 18 },
+    habitName:    { fontSize: 16, fontFamily: 'Raleway_600SemiBold', color: t.text, marginBottom: 2 },
+    habitMeta:    { fontSize: 12, fontFamily: 'Raleway_400Regular', color: t.textSub },
+    chevron:      { fontSize: 11, color: t.textSub, marginLeft: 12 },
+    cardBody:     { paddingHorizontal: 18, paddingBottom: 20, borderTopWidth: 1, borderTopColor: t.border },
+    statRow:      { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16, marginHorizontal: -4 },
+    dateRow:      { flexDirection: 'row', gap: 10, marginTop: 16, marginBottom: 20 },
+    datePill:     { flex: 1, backgroundColor: t.bg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: t.border },
+    dateLabel:    { fontSize: 10, fontFamily: 'Raleway_600SemiBold', color: t.textSub, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+    dateValue:    { fontSize: 14, fontFamily: 'Raleway_600SemiBold', color: t.text },
+    muted:        { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 15 },
   });
 }
