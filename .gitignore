@@ -44,3 +44,5 @@ yarn-error.*
 /ios
 /androidrelease/
 dist/
+
+/notes.md

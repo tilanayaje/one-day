@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Modal } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { View, Modal, Platform } from 'react-native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { TouchableOpacity, Text } from 'react-native';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { supabase } from './src/db/supabase';
-import { Platform } from 'react-native';
 
 import {
   useFonts,
@@ -20,11 +19,14 @@ import Journal     from './src/screens/Journal';
 import Gratitude   from './src/screens/Gratitude';
 import Philosophy  from './src/screens/Philosophy';
 import Login       from './src/screens/Login';
+import You         from './src/screens/You';
 
 const Tab = createBottomTabNavigator();
 
 function AppNavigator() {
   const { theme, isDark, toggleTheme } = useTheme();
+  const navigationRef = useNavigationContainerRef();
+
   const [session,      setSession]      = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -46,8 +48,13 @@ function AppNavigator() {
   if (loading) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
   if (!session) return <Login />;
 
+  const goToYou = () => {
+    setShowSettings(false);
+    setTimeout(() => navigationRef.navigate('You'), 150);
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Tab.Navigator
         screenOptions={{
           headerStyle:     { backgroundColor: theme.bg, height: 70 },
@@ -81,11 +88,7 @@ function AppNavigator() {
                 backgroundColor: theme.accent,
                 alignItems: 'center', justifyContent: 'center',
               }}>
-                <Text style={{
-                  color: theme.accentText,
-                  fontSize: 15,
-                  fontFamily: 'Raleway_700Bold',
-                }}>
+                <Text style={{ color: theme.accentText, fontSize: 15, fontFamily: 'Raleway_700Bold' }}>
                   {session.user.user_metadata?.full_name?.[0]?.toUpperCase() ?? '?'}
                 </Text>
               </View>
@@ -98,6 +101,11 @@ function AppNavigator() {
         <Tab.Screen name="Journal"    component={Journal} />
         <Tab.Screen name="Gratitude"  component={Gratitude} />
         <Tab.Screen name="Philosophy" component={Philosophy} />
+        <Tab.Screen
+          name="You"
+          component={You}
+          options={{ tabBarButton: () => null }}
+        />
       </Tab.Navigator>
 
       {/* Settings Modal */}
@@ -143,20 +151,32 @@ function AppNavigator() {
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text
-                  style={{ color: theme.text, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }}
-                  numberOfLines={1}
-                >
+                <Text style={{ color: theme.text, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }} numberOfLines={1}>
                   {session.user.user_metadata?.full_name ?? 'User'}
                 </Text>
-                <Text
-                  style={{ color: theme.textSub, fontFamily: 'Raleway_400Regular', fontSize: 12 }}
-                  numberOfLines={1}
-                >
+                <Text style={{ color: theme.textSub, fontFamily: 'Raleway_400Regular', fontSize: 12 }} numberOfLines={1}>
                   {session.user.email}
                 </Text>
               </View>
             </View>
+
+            {/* You */}
+            <TouchableOpacity
+              onPress={goToYou}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 18,
+                borderBottomWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Text style={{ color: theme.text, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }}>
+                You
+              </Text>
+              <Text style={{ color: theme.textSub, fontSize: 16 }}>→</Text>
+            </TouchableOpacity>
 
             {/* Dark Mode */}
             <TouchableOpacity
