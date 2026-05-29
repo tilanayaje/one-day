@@ -46,8 +46,10 @@ export default function HabitTable() {
   const [editColor, setEditColor]       = useState(null);
   const [editError, setEditError]       = useState('');
 
+
+  const [initialLoad, setInitialLoad] = useState(true);
   const loadData = async () => {
-    setLoading(true);
+    if (initialLoad) setLoading(true);
     const [h, tw, lw] = await Promise.all([
       getHabits(),
       getCompletionsForWeek(THIS_WEEK),
@@ -57,6 +59,7 @@ export default function HabitTable() {
     setThisWeek(tw);
     setLastWeek(lw);
     setLoading(false);
+    setInitialLoad(false);
   };
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
@@ -89,20 +92,13 @@ export default function HabitTable() {
 
 
 
-    const handleDelete = async (id) => {
+  const handleDelete = async (id) => {
     const habit = habits.find(h => h.id === id);
-    Alert.alert(
-        'Delete Habit',
-        `Are you sure you want to delete "${habit?.name}"? This cannot be undone.`,
-        [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-            await deleteHabit(id);
-            loadData();
-        }},
-        ]
-    );
-    };
+    const confirmed = window.confirm(`Delete "${habit?.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+    await deleteHabit(id);
+    loadData();
+  };
 
   const handleEditSave = async () => {
     const name = editName.trim();
