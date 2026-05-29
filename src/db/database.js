@@ -4,9 +4,7 @@ import { supabase } from './supabase';
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      redirectTo: window.location.origin,
-    },
+    options: { redirectTo: window.location.origin },
   });
   if (error) throw error;
 }
@@ -27,25 +25,26 @@ export async function getHabits() {
     .select('*')
     .order('ord', { ascending: true });
   if (error) throw error;
-  return data.map(h => ({ ...h, perweek: h.perweek }));
+  return data;
 }
 
-export async function addHabit(name, perweek, color = null) {
-  const { data: existing } = await supabase.from('habits').select('ord').order('ord', { ascending: false }).limit(1);
+export async function addHabit(name, perweek, color = null, notes = null) {
+  const { data: existing } = await supabase
+    .from('habits').select('ord').order('ord', { ascending: false }).limit(1);
   const ord = existing?.[0]?.ord ?? 0;
   const { data, error } = await supabase
     .from('habits')
-    .insert({ name, perweek, color, ord: ord + 1 })
+    .insert({ name, perweek, color, notes, ord: ord + 1 })
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-export async function updateHabit(id, name, perweek, color = null) {
+export async function updateHabit(id, name, perweek, color = null, notes = null) {
   const { error } = await supabase
     .from('habits')
-    .update({ name, perweek, color })
+    .update({ name, perweek, color, notes })
     .eq('id', id);
   if (error) throw error;
 }
@@ -56,20 +55,16 @@ export async function deleteHabit(id) {
 }
 
 export async function reorderHabits(orderedHabits) {
-  const updates = orderedHabits.map((h, i) =>
+  await Promise.all(orderedHabits.map((h, i) =>
     supabase.from('habits').update({ ord: i }).eq('id', h.id)
-  );
-  await Promise.all(updates);
+  ));
 }
 
 // --- Completions ---
 export async function getCompletionsForWeek(weekKey) {
   const { data, error } = await supabase
-    .from('completions')
-    .select('*')
-    .eq('week_key', weekKey);
+    .from('completions').select('*').eq('week_key', weekKey);
   if (error) throw error;
-
   const result = {};
   for (const row of data) {
     if (!result[row.habit_id]) result[row.habit_id] = Array(7).fill(false);
@@ -81,7 +76,6 @@ export async function getCompletionsForWeek(weekKey) {
 export async function getAllCompletions() {
   const { data, error } = await supabase.from('completions').select('*');
   if (error) throw error;
-
   const result = {};
   for (const row of data) {
     if (!result[row.week_key]) result[row.week_key] = {};
@@ -102,19 +96,14 @@ export async function toggleCompletion(habitId, weekKey, day, checked) {
 // --- Journal ---
 export async function getJournalEntries() {
   const { data, error } = await supabase
-    .from('journal_entries')
-    .select('*')
-    .order('date', { ascending: false });
+    .from('journal_entries').select('*').order('date', { ascending: false });
   if (error) throw error;
   return data;
 }
 
 export async function addJournalEntry(date, title, body) {
   const { data, error } = await supabase
-    .from('journal_entries')
-    .insert({ date, title, body })
-    .select()
-    .single();
+    .from('journal_entries').insert({ date, title, body }).select().single();
   if (error) throw error;
   return data;
 }
@@ -127,19 +116,14 @@ export async function deleteJournalEntry(id) {
 // --- Gratitude ---
 export async function getGratitudeEntries() {
   const { data, error } = await supabase
-    .from('gratitude_entries')
-    .select('*')
-    .order('date', { ascending: false });
+    .from('gratitude_entries').select('*').order('date', { ascending: false });
   if (error) throw error;
   return data;
 }
 
 export async function addGratitudeEntry(date, body) {
   const { data, error } = await supabase
-    .from('gratitude_entries')
-    .insert({ date, body })
-    .select()
-    .single();
+    .from('gratitude_entries').insert({ date, body }).select().single();
   if (error) throw error;
   return data;
 }

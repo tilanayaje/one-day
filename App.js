@@ -74,9 +74,21 @@ function AppNavigator() {
           headerRight: () => (
             <TouchableOpacity
               onPress={() => setShowSettings(true)}
-              style={{ marginRight: 20, padding: 6 }}
+              style={{ marginRight: 20, padding: 4 }}
             >
-              <Text style={{ fontSize: 22 }}>{isDark ? '☀️' : '🌙'}</Text>
+              <View style={{
+                width: 34, height: 34, borderRadius: 17,
+                backgroundColor: theme.accent,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{
+                  color: theme.accentText,
+                  fontSize: 15,
+                  fontFamily: 'Raleway_700Bold',
+                }}>
+                  {session.user.user_metadata?.full_name?.[0]?.toUpperCase() ?? '?'}
+                </Text>
+              </View>
             </TouchableOpacity>
           ),
         }}
