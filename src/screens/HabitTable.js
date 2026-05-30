@@ -182,6 +182,7 @@ export default function HabitTable() {
   const { width } = useWindowDimensions();
   const isMobile = width < MOBILE_BREAKPOINT;
   const s = makeStyles(theme);
+  const modalModeRef = React.useRef('add');
 
   const [data, setData] = useState({
     habits: [], thisChecks: {}, thisBlocks: {}, prevChecks: {},
@@ -268,11 +269,18 @@ export default function HabitTable() {
     }
   };
 
-  const openAdd  = () => { setForm(EMPTY_FORM); setModal({ mode: 'add', habit: null }); };
+  const openAdd = () => {
+    modalModeRef.current = 'add';
+    setForm(EMPTY_FORM);
+    setModal({ mode: 'add', habit: null });
+  };
+
   const openEdit = (habit) => {
+    modalModeRef.current = 'edit';
     setForm({ name: habit.name, goal: String(habit.perweek), color: habit.color ?? null, notes: habit.notes ?? '', error: '' });
     setModal({ mode: 'edit', habit });
   };
+
   const closeModal = () => setModal({ mode: null, habit: null });
   const setField   = (key, val) => setForm(f => ({ ...f, [key]: val, error: '' }));
 
@@ -499,7 +507,7 @@ export default function HabitTable() {
       <View style={s.modalOverlay}>
         <ScrollView contentContainerStyle={{ alignItems: 'center', justifyContent: 'center', flexGrow: 1, padding: 16 }} keyboardShouldPersistTaps="handled">
           <View style={[s.modalBox, isMobile && { width: '100%', maxWidth: 420 }]}>
-            <Text style={s.modalTitle}>{modal.mode === 'add' ? 'New Habit' : 'Edit Habit'}</Text>
+            <Text style={s.modalTitle}>{modalModeRef.current === 'add' ? 'New Habit' : 'Edit Habit'}</Text>
 
             <Text style={s.modalLabel}>Name</Text>
             <TextInput style={s.input} value={form.name} onChangeText={v => setField('name', v)} placeholder="e.g. Go to gym" placeholderTextColor={theme.textSub} maxLength={50} autoFocus />
@@ -523,7 +531,7 @@ export default function HabitTable() {
             {form.error ? <Text style={s.errorText}>{form.error}</Text> : null}
 
             <View style={s.modalActions}>
-              <TouchableOpacity style={s.saveBtn} onPress={handleSave}><Text style={s.saveBtnText}>{modal.mode === 'add' ? 'Add' : 'Save'}</Text></TouchableOpacity>
+              <TouchableOpacity style={s.saveBtn} onPress={handleSave}><Text style={s.saveBtnText}>{modalModeRef.current === 'add' ? 'Add' : 'Save'}</Text></TouchableOpacity>
               <TouchableOpacity onPress={closeModal} style={s.cancelBtn}><Text style={s.cancelText}>Cancel</Text></TouchableOpacity>
             </View>
           </View>

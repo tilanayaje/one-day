@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { getHabits, getAllCompletions } from '../db/database';
+
+const MOBILE_BREAKPOINT = 768;
 
 function computeStats(habit, allCompletions) {
   const weekKeys = Object.keys(allCompletions).sort();
@@ -67,123 +69,105 @@ function computeStats(habit, allCompletions) {
   };
 }
 
-function BarChart({ data, goal, theme }) {
+function BarChart({ data, goal, theme, isMobile }) {
   if (!data || data.length === 0) return null;
   const maxVal = Math.max(goal, ...data.map(d => d.count));
-  const chartHeight = 140;
-  const barWidth = Math.min(48, Math.floor(800 / data.length) - 6);
+  const chartHeight = isMobile ? 100 : 140;
+  const barWidth = isMobile
+    ? Math.min(32, Math.floor(300 / data.length) - 4)
+    : Math.min(48, Math.floor(800 / data.length) - 6);
 
   return (
     <View>
       <Text style={{
-        color: theme.textSub,
-        fontSize: 11,
-        fontFamily: 'Raleway_600SemiBold',
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-        marginBottom: 16,
+        color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_600SemiBold',
+        letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12,
       }}>
         Weekly Completions
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: chartHeight + 28, gap: 4, flexWrap: 'nowrap' }}>
-        {data.map((d, i) => {
-          const barHeight = maxVal > 0 ? Math.max(2, (d.count / maxVal) * chartHeight) : 2;
-          const goalLineY = (goal / maxVal) * chartHeight;
-          const hitGoal = d.count >= goal;
-          return (
-            <View key={i} style={{ width: barWidth, alignItems: 'center', justifyContent: 'flex-end', height: chartHeight + 28 }}>
-              <View style={{ width: barWidth, height: chartHeight, justifyContent: 'flex-end', position: 'relative' }}>
-                <View style={{
-                  position: 'absolute',
-                  bottom: goalLineY,
-                  left: 0, right: 0,
-                  height: 1,
-                  backgroundColor: '#f9e2af',
-                  opacity: 0.5,
-                }} />
-                <View style={{
-                  width: '85%',
-                  alignSelf: 'center',
-                  height: barHeight,
-                  backgroundColor: hitGoal ? '#f9e2af' : theme.accent,
-                  borderRadius: 4,
-                  opacity: 0.85,
-                }} />
+      <ScrollView horizontal={isMobile} showsHorizontalScrollIndicator={false}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: chartHeight + 28, gap: isMobile ? 3 : 4 }}>
+          {data.map((d, i) => {
+            const barHeight = maxVal > 0 ? Math.max(2, (d.count / maxVal) * chartHeight) : 2;
+            const goalLineY = (goal / maxVal) * chartHeight;
+            const hitGoal = d.count >= goal;
+            return (
+              <View key={i} style={{ width: barWidth, alignItems: 'center', justifyContent: 'flex-end', height: chartHeight + 28 }}>
+                <View style={{ width: barWidth, height: chartHeight, justifyContent: 'flex-end', position: 'relative' }}>
+                  <View style={{
+                    position: 'absolute', bottom: goalLineY, left: 0, right: 0,
+                    height: 1, backgroundColor: '#f9e2af', opacity: 0.5,
+                  }} />
+                  <View style={{
+                    width: '85%', alignSelf: 'center', height: barHeight,
+                    backgroundColor: hitGoal ? '#f9e2af' : theme.accent,
+                    borderRadius: 3, opacity: 0.85,
+                  }} />
+                </View>
+                <Text style={{ color: theme.textSub, fontSize: isMobile ? 8 : 9, marginTop: 4, fontFamily: 'Raleway_400Regular', textAlign: 'center' }}>
+                  {d.week}
+                </Text>
               </View>
-              <Text style={{
-                color: theme.textSub,
-                fontSize: 9,
-                marginTop: 6,
-                fontFamily: 'Raleway_400Regular',
-                textAlign: 'center',
-              }}>
-                {d.week}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 16, height: 1, backgroundColor: '#f9e2af' }} />
-          <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>Goal</Text>
+            );
+          })}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 10, height: 10, backgroundColor: '#f9e2af', borderRadius: 2 }} />
-          <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>Met</Text>
+      </ScrollView>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 14, height: 1, backgroundColor: '#f9e2af' }} />
+          <Text style={{ color: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}>Goal</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 10, height: 10, backgroundColor: theme.accent, borderRadius: 2 }} />
-          <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular' }}>In progress</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 8, height: 8, backgroundColor: '#f9e2af', borderRadius: 2 }} />
+          <Text style={{ color: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}>Met</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 8, height: 8, backgroundColor: theme.accent, borderRadius: 2 }} />
+          <Text style={{ color: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}>In progress</Text>
         </View>
       </View>
     </View>
   );
 }
 
-function StatCard({ label, value, theme, accent }) {
+function StatCard({ label, value, theme, accent, isMobile }) {
   return (
     <View style={{
-      flex: 1,
-      minWidth: 100,
+      flex: isMobile ? undefined : 1,
+      width: isMobile ? '100%' : undefined,
+      minWidth: isMobile ? undefined : 90,
       backgroundColor: theme.surface,
       borderRadius: 12,
-      padding: 16,
-      alignItems: 'center',
+      padding: isMobile ? 14 : 16,
       borderWidth: 1,
       borderColor: theme.border,
-      margin: 4,
+      flexDirection: isMobile ? 'row' : 'column',
+      alignItems: 'center',
+      justifyContent: isMobile ? 'space-between' : 'center',
+      margin: isMobile ? 0 : 4,
+      marginBottom: isMobile ? 8 : 4,
     }}>
       <Text style={{
-        fontSize: 28,
-        fontFamily: 'Raleway_700Bold',
-        color: accent || theme.text,
-        marginBottom: 4,
-      }}>
-        {value}
-      </Text>
-      <Text style={{
-        fontSize: 10,
-        fontFamily: 'Raleway_600SemiBold',
-        color: theme.textSub,
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-        textAlign: 'center',
+        fontSize: isMobile ? 12 : 10, fontFamily: 'Raleway_600SemiBold',
+        color: theme.textSub, letterSpacing: 1, textTransform: 'uppercase',
       }}>
         {label}
       </Text>
+      <Text style={{
+        fontSize: isMobile ? 20 : 28, fontFamily: 'Raleway_700Bold',
+        color: accent || theme.text, marginTop: isMobile ? 0 : 4,
+      }}>
+        {value}
+      </Text>
     </View>
   );
 }
 
-function OverallSummary({ habits, allCompletions, theme }) {
-  let totalChecks = 0;
-  let totalGoalWeeks = 0;
-  let totalWeeks = 0;
+function OverallSummary({ habits, allCompletions, theme, isMobile }) {
+  let totalChecks = 0, totalGoalWeeks = 0, totalWeeks = 0;
 
   for (const habit of habits) {
-    const weekKeys = Object.keys(allCompletions).sort();
-    for (const wk of weekKeys) {
+    for (const wk of Object.keys(allCompletions)) {
       const days = allCompletions[wk][habit.id] ?? [];
       const count = days.filter(Boolean).length;
       if (count > 0) {
@@ -198,27 +182,20 @@ function OverallSummary({ habits, allCompletions, theme }) {
 
   return (
     <View style={{
-      backgroundColor: theme.surface,
-      borderRadius: 16,
-      padding: 24,
-      marginBottom: 24,
-      borderWidth: 1,
-      borderColor: theme.border,
+      backgroundColor: theme.surface, borderRadius: 16,
+      padding: isMobile ? 16 : 24, marginBottom: 20,
+      borderWidth: 1, borderColor: theme.border,
     }}>
       <Text style={{
-        fontSize: 13,
-        fontFamily: 'Raleway_600SemiBold',
-        color: theme.textSub,
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-        marginBottom: 16,
+        fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: theme.textSub,
+        letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 14,
       }}>
         Overall
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <StatCard label="Total Checks" value={totalChecks} theme={theme} accent={theme.accent} />
-        <StatCard label="Habits Tracked" value={habits.length} theme={theme} />
-        <StatCard label="Overall Hit Rate" value={`${overallHitRate}%`} theme={theme} accent={overallHitRate >= 70 ? '#a6e3a1' : undefined} />
+      <View style={{ flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap' }}>
+        <StatCard label="Total Checks" value={totalChecks} theme={theme} accent={theme.accent} isMobile={isMobile} />
+        <StatCard label="Habits Tracked" value={habits.length} theme={theme} isMobile={isMobile} />
+        <StatCard label="Overall Hit Rate" value={`${overallHitRate}%`} theme={theme} accent={overallHitRate >= 70 ? '#a6e3a1' : undefined} isMobile={isMobile} />
       </View>
     </View>
   );
@@ -226,7 +203,9 @@ function OverallSummary({ habits, allCompletions, theme }) {
 
 export default function Analytics() {
   const { theme } = useTheme();
-  const s = makeStyles(theme);
+  const { width } = useWindowDimensions();
+  const isMobile = width < MOBILE_BREAKPOINT;
+  const s = makeStyles(theme, isMobile); 
 
   const [habits, setHabits] = useState([]);
   const [allCompletions, setAllCompletions] = useState({});
@@ -244,30 +223,25 @@ export default function Analytics() {
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
   if (loading) return (
-    <View style={s.center}>
-      <Text style={s.muted}>Loading...</Text>
-    </View>
+    <View style={s.center}><Text style={s.muted}>Loading...</Text></View>
   );
 
   if (habits.length === 0) return (
-    <View style={s.center}>
-      <Text style={s.muted}>No habits yet.</Text>
-    </View>
+    <View style={s.center}><Text style={s.muted}>No habits yet.</Text></View>
   );
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-      <OverallSummary habits={habits} allCompletions={allCompletions} theme={theme} />
+      <OverallSummary habits={habits} allCompletions={allCompletions} theme={theme} isMobile={isMobile} />
 
       <Text style={s.sectionLabel}>Per Habit</Text>
 
       {habits.map(habit => {
         const isOpen = expanded === habit.id;
         const stats = isOpen ? computeStats(habit, allCompletions) : null;
-        const hasColor = !!habit.color;
 
         return (
-          <View key={habit.id} style={[s.card, hasColor && { borderLeftWidth: 3, borderLeftColor: habit.color }]}>
+          <View key={habit.id} style={[s.card, habit.color && { borderLeftWidth: 3, borderLeftColor: habit.color }]}>
             <TouchableOpacity
               style={s.cardHeader}
               onPress={() => setExpanded(isOpen ? null : habit.id)}
@@ -283,16 +257,16 @@ export default function Analytics() {
             {isOpen && (
               <View style={s.cardBody}>
                 {!stats ? (
-                  <Text style={s.muted}>No data yet for this habit.</Text>
+                  <Text style={s.muted}>No data yet.</Text>
                 ) : (
                   <>
                     <View style={s.statRow}>
-                      <StatCard label="Total Checks"  value={stats.totalCompletions}                    theme={theme} />
-                      <StatCard label="Weeks Tracked" value={stats.weeksTracked}                        theme={theme} />
-                      <StatCard label="Best Week"     value={`${stats.bestWeekCount}/${habit.perweek}`} theme={theme} />
-                      <StatCard label="Hit Rate"      value={`${stats.goalHitRate}%`}                   theme={theme} accent={stats.goalHitRate >= 70 ? '#a6e3a1' : undefined} />
-                      <StatCard label="Streak"        value={`${stats.currentStreak}w`}                 theme={theme} accent={stats.currentStreak > 0 ? theme.accent : undefined} />
-                      <StatCard label="Best Streak"   value={`${stats.bestStreak}w`}                    theme={theme} />
+                      <StatCard label="Total Checks" value={stats.totalCompletions} theme={theme} isMobile={isMobile} />
+                      <StatCard label="Weeks Tracked" value={stats.weeksTracked} theme={theme} isMobile={isMobile} />
+                      <StatCard label="Best Week" value={`${stats.bestWeekCount}/${habit.perweek}`} theme={theme} isMobile={isMobile} />
+                      <StatCard label="Hit Rate" value={`${stats.goalHitRate}%`} theme={theme} accent={stats.goalHitRate >= 70 ? '#a6e3a1' : undefined} isMobile={isMobile} />
+                      <StatCard label="Streak" value={`${stats.currentStreak}w`} theme={theme} accent={stats.currentStreak > 0 ? theme.accent : undefined} isMobile={isMobile} />
+                      <StatCard label="Best Streak" value={`${stats.bestStreak}w`} theme={theme} isMobile={isMobile} />
                     </View>
 
                     <View style={s.dateRow}>
@@ -306,7 +280,7 @@ export default function Analytics() {
                       </View>
                     </View>
 
-                    <BarChart data={stats.chartData} goal={habit.perweek} theme={theme} />
+                    <BarChart data={stats.chartData} goal={habit.perweek} theme={theme} isMobile={isMobile} />
                   </>
                 )}
               </View>
@@ -319,20 +293,20 @@ export default function Analytics() {
   );
 }
 
-function makeStyles(t) {
+function makeStyles(t, mobile) {
   return StyleSheet.create({
-    container:    { flex: 1, padding: 24, backgroundColor: t.bg },
+    container:    { flex: 1, padding: mobile ? 12 : 24, backgroundColor: t.bg },
     center:       { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.bg },
     sectionLabel: { fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: t.textSub, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 12 },
     card:         { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: t.border, overflow: 'hidden' },
-    cardHeader:   { flexDirection: 'row', alignItems: 'center', padding: 18 },
-    habitName:    { fontSize: 16, fontFamily: 'Raleway_600SemiBold', color: t.text, marginBottom: 2 },
+    cardHeader:   { flexDirection: 'row', alignItems: 'center', padding: mobile ? 14 : 18 },
+    habitName:    { fontSize: mobile ? 14 : 16, fontFamily: 'Raleway_600SemiBold', color: t.text, marginBottom: 2 },
     habitMeta:    { fontSize: 12, fontFamily: 'Raleway_400Regular', color: t.textSub },
     chevron:      { fontSize: 11, color: t.textSub, marginLeft: 12 },
-    cardBody:     { paddingHorizontal: 18, paddingBottom: 20, borderTopWidth: 1, borderTopColor: t.border },
-    statRow:      { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16, marginHorizontal: -4 },
-    dateRow:      { flexDirection: 'row', gap: 10, marginTop: 16, marginBottom: 20 },
-    datePill:     { flex: 1, backgroundColor: t.bg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: t.border },
+    cardBody:     { paddingHorizontal: mobile ? 14 : 18, paddingBottom: 18, borderTopWidth: 1, borderTopColor: t.border },
+    statRow:      { flexDirection: mobile ? 'column' : 'row', flexWrap: 'wrap', marginTop: 14, marginHorizontal: mobile ? 0 : -4 },
+    dateRow:      { flexDirection: mobile ? 'column' : 'row', gap: 10, marginTop: 14, marginBottom: 18 },
+    datePill:     { flex: mobile ? undefined : 1, backgroundColor: t.bg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: t.border, marginBottom: mobile ? 8 : 0 },
     dateLabel:    { fontSize: 10, fontFamily: 'Raleway_600SemiBold', color: t.textSub, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
     dateValue:    { fontSize: 14, fontFamily: 'Raleway_600SemiBold', color: t.text },
     muted:        { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 15 },
