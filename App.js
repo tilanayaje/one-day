@@ -108,11 +108,7 @@ function AppNavigator() {
         <Tab.Screen name="Journal"    component={Journal} />
         <Tab.Screen name="Gratitude"  component={Gratitude} />
         <Tab.Screen name="Philosophy" component={Philosophy} />
-        <Tab.Screen
-          name="You"
-          component={You}
-          options={{ tabBarButton: () => null }}
-        />
+        <Tab.Screen name="You" component={You} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, }}/>
       </Tab.Navigator>
 
       {/* Settings Modal */}

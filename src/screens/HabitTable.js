@@ -381,8 +381,8 @@ export default function HabitTable() {
     return (
       <View style={[
         s.mobileCard,
-        habit.color && { borderLeftColor: habit.color, borderLeftWidth: 4 },
-        goalMet && { borderLeftColor: '#f9e2af', borderLeftWidth: 4 },
+        habit.color && { borderLeftColor: habit.color },
+        goalMet && { borderLeftColor: '#f9e2af' },
       ]}>
         <View style={s.mobileCardHeader}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(habit)}>
@@ -445,7 +445,7 @@ export default function HabitTable() {
     return (
       <View style={[
         s.row,
-        habit.color && { backgroundColor: habit.color + theme.rowColorOpacity },
+        habit.color && { borderLeftColor: habit.color },
         goalMet && s.goalMet,
       ]}>
         {isCurrentWeek && (
@@ -639,8 +639,8 @@ function makeStyles(t) {
     dayCellHeader:       { width: 80, alignItems: 'center', justifyContent: 'center' },
     statCellHeader:      { width: 88, textAlign: 'center' },
     todayHeader:         { color: t.todayText },
-    row:                 { flexDirection: 'row', borderBottomWidth: 1, borderColor: t.border, alignItems: 'center', minHeight: 60 },
-    goalMet:             { borderLeftWidth: 3, borderLeftColor: '#f9e2af' },
+    row: { flexDirection: 'row', borderBottomWidth: 1, borderColor: t.border, alignItems: 'center', minHeight: 60, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+    goalMet: { borderLeftColor: '#f9e2af' },
     sumRow:              { backgroundColor: t.sumRow, borderTopWidth: 2, borderTopColor: t.border, marginTop: 2 },
     orderBtns:           { width: 40, alignItems: 'center', justifyContent: 'center', gap: 4 },
     orderBtn:            { fontSize: 11, color: t.orderBtn, paddingVertical: 2, fontFamily: 'Raleway_400Regular' },
@@ -649,7 +649,7 @@ function makeStyles(t) {
     habitCellText:       { width: 240, paddingHorizontal: 12, paddingVertical: 10, color: t.text, fontFamily: 'Raleway_400Regular' },
     habitCell:           { color: t.text, fontSize: 14, letterSpacing: 0.3, fontFamily: 'Raleway_400Regular', lineHeight: 20 },
     notePreview:         { color: t.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 2, fontStyle: 'italic' },
-    dayCell:             { width: 80, alignItems: 'center', justifyContent: 'center', height: 60 },
+    dayCell: { width: 80, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
     todayCell:           { backgroundColor: t.today, borderRadius: 6 },
     checkMark:           { fontSize: 20, color: t.checkMark, fontFamily: 'Raleway_700Bold' },
     blockMark:           { fontSize: 18, color: t.delete, fontFamily: 'Raleway_700Bold', opacity: 0.6 },
@@ -661,7 +661,7 @@ function makeStyles(t) {
     addHabitText:        { color: t.accent, fontSize: 14, letterSpacing: 0.4, fontFamily: 'Raleway_600SemiBold' },
 
     // ── Mobile ──
-    mobileCard:          { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, padding: 16, borderWidth: 1, borderColor: t.border },
+    mobileCard: { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, padding: 16, borderWidth: 1, borderColor: t.border, borderLeftWidth: 4, borderLeftColor: 'transparent' },
     mobileCardHeader:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
     mobileHabitName:     { color: t.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold', lineHeight: 22, flex: 1 },
     mobileNotePreview:   { color: t.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 3, fontStyle: 'italic' },

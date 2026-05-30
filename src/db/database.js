@@ -149,3 +149,9 @@ export async function addGratitudeEntry(date, body) {
   if (error) throw error;
   return data;
 }
+
+export async function updateJournalEntry(id, title, body) {
+  const { error } = await supabase
+    .from('journal_entries').update({ title, body }).eq('id', id);
+  if (error) throw error;
+}
