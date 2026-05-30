@@ -219,7 +219,7 @@ function Heatmap({ weeks, monthLabels, maxCount, cellSize, gap, theme, isDark })
           }}
         >
           <Text style={{ color: theme.text, fontSize: 13, fontFamily: 'Raleway_600SemiBold' }}>
-            {tooltip.count} check-in{tooltip.count !== 1 ? 's' : ''}
+            {tooltip.count} check{tooltip.count !== 1 ? 's' : ''}
           </Text>
           <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>
             {tooltip.iso}
@@ -373,7 +373,7 @@ export default function You() {
 
       {/* Stats */}
       <View style={{ flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 0 : 12 }}>
-        <StatCard label="Total Check-ins" value={stats.totalChecks} accent={theme.accent} theme={theme} isMobile={isMobile} />
+        <StatCard label="Total Checks" value={stats.totalChecks} accent={theme.accent} theme={theme} isMobile={isMobile} />
         <StatCard label="Current Streak" value={`${stats.currentStreak}d`} accent={stats.currentStreak > 0 ? '#f9e2af' : undefined} theme={theme} isMobile={isMobile} />
         <StatCard label="Best Streak" value={`${stats.bestStreak}d`} accent={theme.accent} theme={theme} isMobile={isMobile} />
       </View>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, FlatList, Modal, ScrollView, useWindowDimensions,
@@ -7,13 +7,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import {
   getHabits, addHabit, deleteHabit, updateHabit,
-  getCompletionsForWeek, toggleCompletion, reorderHabits,
+  getWeekData, toggleCompletion, toggleBlock, reorderHabits,
 } from '../db/database';
-import { getWeekKey, getLastWeekKey } from '../utils/date';
+import { getWeekKey } from '../utils/date';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MAX_HABITS = 20;
+const MOBILE_BREAKPOINT = 768;
 
 const ROW_COLORS = [
   null,
@@ -26,7 +27,53 @@ const ROW_COLORS = [
 ];
 
 const EMPTY_FORM = { name: '', goal: '7', color: null, notes: '', error: '' };
-const MOBILE_BREAKPOINT = 768;
+
+// ── Week helpers ──────────────────────────────────────────
+
+function getWeekKeyWithOffset(offset) {
+  const now = new Date();
+  now.setDate(now.getDate() + offset * 7);
+  const day = now.getDay();
+  now.setDate(now.getDate() - day);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatWeekRange(weekKey) {
+  const start = new Date(weekKey + 'T00:00:00');
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const opts = { month: 'short', day: 'numeric' };
+  const startStr = start.toLocaleDateString('en-US', opts);
+  const endStr = end.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
+  return `${startStr} – ${endStr}`;
+}
+
+function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, onToggle, onBlock, s }) {
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || !isCurrentWeek) return;
+    const handler = (e) => { e.preventDefault(); onBlock(); };
+    el.addEventListener('contextmenu', handler);
+    return () => el.removeEventListener('contextmenu', handler);
+  }, [isCurrentWeek, habitId, dayIndex]);
+
+  return (
+    <TouchableOpacity
+      ref={ref}
+      style={[s.dayCell, isToday && s.todayCell, !isCurrentWeek && { opacity: 0.7 }]}
+      onPress={onToggle}
+      disabled={!isCurrentWeek}
+    >
+      {state === 'checked' && <Text style={s.checkMark}>✓</Text>}
+      {state === 'blocked' && <Text style={s.blockMark}>✕</Text>}
+    </TouchableOpacity>
+  );
+}
 
 export default function HabitTable() {
   const { theme } = useTheme();
@@ -34,41 +81,89 @@ export default function HabitTable() {
   const isMobile = width < MOBILE_BREAKPOINT;
   const s = makeStyles(theme);
 
-  const [habits,      setHabits]      = useState([]);
-  const [thisWeek,    setThisWeek]    = useState({});
-  const [lastWeek,    setLastWeek]    = useState({});
-  const [loading,     setLoading]     = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [modal,       setModal]       = useState({ mode: null, habit: null });
-  const [form,        setForm]        = useState(EMPTY_FORM);
-  const [weekKeys,    setWeekKeys]    = useState({
-    this: getWeekKey(), last: getLastWeekKey(), today: new Date().getDay(),
+  const [data, setData] = useState({
+    habits: [], thisChecks: {}, thisBlocks: {}, prevChecks: {},
+    loading: true, todayIndex: new Date().getDay(), isCurrentWeek: true,
   });
+  const { habits, thisChecks, thisBlocks, prevChecks, loading } = data;
+  const todayIndex    = data.todayIndex;
+  const isCurrentWeek = data.isCurrentWeek;
 
-  const loadData = async () => {
-    if (initialLoad) setLoading(true);
-    const wk = { this: getWeekKey(), last: getLastWeekKey(), today: new Date().getDay() };
-    setWeekKeys(wk);
-    const [h, tw, lw] = await Promise.all([
-      getHabits(),
-      getCompletionsForWeek(wk.this),
-      getCompletionsForWeek(wk.last),
+  const [modal,      setModal]      = useState({ mode: null, habit: null });
+  const [form,       setForm]       = useState(EMPTY_FORM);
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const currentWeekKey  = getWeekKeyWithOffset(weekOffset);
+  const previousWeekKey = getWeekKeyWithOffset(weekOffset - 1);
+
+  const loadData = async (offset, showLoader = false) => {
+    const wk   = getWeekKeyWithOffset(offset);
+    const prev = getWeekKeyWithOffset(offset - 1);
+    if (showLoader) setData(d => ({ ...d, loading: true }));
+    const [h, thisD, prevD] = await Promise.all([
+      getHabits(), getWeekData(wk), getWeekData(prev),
     ]);
-    setHabits(h);
-    setThisWeek(tw);
-    setLastWeek(lw);
-    setLoading(false);
-    setInitialLoad(false);
+    setData({
+      habits: h,
+      thisChecks: thisD.checks,
+      thisBlocks: thisD.blocks,
+      prevChecks: prevD.checks,
+      loading: false,
+      todayIndex: offset === 0 ? new Date().getDay() : -1,
+      isCurrentWeek: offset === 0,
+      });
+    };
+
+    const firstLoad = React.useRef(true);
+
+    useFocusEffect(useCallback(() => {
+      loadData(weekOffset, firstLoad.current);
+      firstLoad.current = false;
+    }, []));
+
+    useEffect(() => {
+      if (!firstLoad.current) loadData(weekOffset);
+    }, [weekOffset]);
+
+  // ── Handlers ──────────────────────────────────────────
+
+    const handleToggle = async (habitId, dayIndex) => {
+    if (!isCurrentWeek) return;
+    const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+    if (isBlocked) {
+      setData(d => ({
+        ...d,
+        thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
+        thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
+      }));
+      await toggleCompletion(habitId, currentWeekKey, dayIndex, true);
+      return;
+    }
+    const current = thisChecks[habitId]?.[dayIndex] ?? false;
+    setData(d => ({
+      ...d,
+      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? !current : v) },
+    }));
+    await toggleCompletion(habitId, currentWeekKey, dayIndex, !current);
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
-
-  const handleToggle = async (habitId, dayIndex) => {
-    const current = thisWeek[habitId]?.[dayIndex] ?? false;
-    const updated  = { ...thisWeek, [habitId]: [...(thisWeek[habitId] ?? Array(7).fill(false))] };
-    updated[habitId][dayIndex] = !current;
-    setThisWeek(updated);
-    await toggleCompletion(habitId, weekKeys.this, dayIndex, !current);
+  const handleBlock = async (habitId, dayIndex) => {
+    if (!isCurrentWeek) return;
+    const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+    if (!isBlocked) {
+      setData(d => ({
+        ...d,
+        thisBlocks: { ...d.thisBlocks, [habitId]: (d.thisBlocks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
+        thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? false : v) },
+      }));
+      await toggleBlock(habitId, currentWeekKey, dayIndex, true);
+    } else {
+      setData(d => ({
+        ...d,
+        thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
+      }));
+      await toggleBlock(habitId, currentWeekKey, dayIndex, false);
+    }
   };
 
   const openAdd  = () => { setForm(EMPTY_FORM); setModal({ mode: 'add', habit: null }); };
@@ -82,13 +177,13 @@ export default function HabitTable() {
   const validate = () => {
     const name = form.name.trim();
     const goal = parseInt(form.goal);
-    if (!name)                                                                        return 'Name is required.';
-    if (name.length > 50)                                                             return 'Max 50 characters.';
-    if (isNaN(goal) || goal < 1 || goal > 7)                                          return 'Goal must be 1–7.';
-    if (modal.mode === 'add' && habits.length >= MAX_HABITS)                          return `Max ${MAX_HABITS} habits.`;
+    if (!name)                                                                     return 'Name is required.';
+    if (name.length > 50)                                                          return 'Max 50 characters.';
+    if (isNaN(goal) || goal < 1 || goal > 7)                                       return 'Goal must be 1–7.';
+    if (modal.mode === 'add' && habits.length >= MAX_HABITS)                       return `Max ${MAX_HABITS} habits.`;
     if (habits.some(h => h.id !== modal.habit?.id && h.name.toLowerCase() === name.toLowerCase()))
-                                                                                      return 'Name already exists.';
-    if (form.notes.length > 1000)                                                     return 'Notes max 1000 characters.';
+                                                                                   return 'Name already exists.';
+    if (form.notes.length > 1000)                                                  return 'Notes max 1000 characters.';
     return null;
   };
 
@@ -98,11 +193,8 @@ export default function HabitTable() {
     const name  = form.name.trim();
     const goal  = parseInt(form.goal);
     const notes = form.notes.trim() || null;
-    if (modal.mode === 'add') {
-      await addHabit(name, goal, form.color, notes);
-    } else {
-      await updateHabit(modal.habit.id, name, goal, form.color, notes);
-    }
+    if (modal.mode === 'add') await addHabit(name, goal, form.color, notes);
+    else await updateHabit(modal.habit.id, name, goal, form.color, notes);
     closeModal();
     loadData();
   };
@@ -119,23 +211,61 @@ export default function HabitTable() {
     const swap = index + dir;
     if (swap < 0 || swap >= next.length) return;
     [next[index], next[swap]] = [next[swap], next[index]];
-    setHabits(next);
+    setData(d => ({ ...d, habits: next }));
     await reorderHabits(next);
   };
 
-  const count    = (completions, id) => (completions[id] ?? []).filter(Boolean).length;
-  const totalThis = habits.reduce((sum, h) => sum + count(thisWeek, h.id), 0);
-  const totalLast = habits.reduce((sum, h) => sum + count(lastWeek, h.id), 0);
+  // ── Derived ───────────────────────────────────────────
+
+  const count = (checks, blocks, id) => {
+    const c = checks[id] ?? [];
+    const b = blocks[id] ?? [];
+    return c.filter((v, i) => v && !b[i]).length;
+  };
+
+  const totalThis = habits.reduce((sum, h) => sum + count(thisChecks, thisBlocks, h.id), 0);
+  const totalPrev = habits.reduce((sum, h) => sum + count(prevChecks, {}, h.id), 0);
   const totalGoal = habits.reduce((sum, h) => sum + h.perweek, 0);
 
-  // ── Mobile Card ───────────────────────────────────────────
+  // ── Week Navigation ───────────────────────────────────
 
-  const todayStr = new Date().toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-    });
+  const WeekNav = (
+    <View style={[s.weekNav, isMobile && { marginBottom: 12 }]}>
+      <TouchableOpacity onPress={() => setWeekOffset(o => o - 1)} style={s.weekArrow}>
+        <Text style={s.weekArrowText}>←</Text>
+      </TouchableOpacity>
+      <View style={s.weekCenter}>
+        <Text style={s.weekRange}>{formatWeekRange(currentWeekKey)}</Text>
+        {weekOffset !== 0 && (
+          <TouchableOpacity onPress={() => setWeekOffset(0)}>
+            <Text style={s.weekTodayBtn}>Today</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <TouchableOpacity
+        onPress={() => setWeekOffset(o => o + 1)}
+        disabled={weekOffset === 0}
+        style={s.weekArrow}
+      >
+        <Text style={[s.weekArrowText, weekOffset === 0 && { color: theme.border }]}>→</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ── Day Cell Helper ───────────────────────────────────
+
+  const getDayState = (habitId, dayIndex) => {
+    const blocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+    const checked = thisChecks[habitId]?.[dayIndex] ?? false;
+    if (blocked) return 'blocked';
+    if (checked) return 'checked';
+    return 'empty';
+  };
+
+  // ── Mobile Card ───────────────────────────────────────
 
   const renderMobileCard = ({ item: habit, index }) => {
-    const tw      = count(thisWeek, habit.id);
+    const tw      = count(thisChecks, thisBlocks, habit.id);
     const goalMet = tw >= habit.perweek;
 
     return (
@@ -144,73 +274,78 @@ export default function HabitTable() {
         habit.color && { borderLeftColor: habit.color, borderLeftWidth: 4 },
         goalMet && { borderLeftColor: '#f9e2af', borderLeftWidth: 4 },
       ]}>
-        {/* Top row */}
         <View style={s.mobileCardHeader}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(habit)}>
             <Text style={s.mobileHabitName} numberOfLines={2}>{habit.name}</Text>
-            {habit.notes ? (
-              <Text style={s.mobileNotePreview} numberOfLines={1}>{habit.notes}</Text>
-            ) : null}
+            {habit.notes ? <Text style={s.mobileNotePreview} numberOfLines={1}>{habit.notes}</Text> : null}
           </TouchableOpacity>
           <View style={s.mobileCardRight}>
             <Text style={[s.mobileCount, goalMet && { color: '#f9e2af' }]}>
               {tw}<Text style={s.mobileCountGoal}>/{habit.perweek}</Text>
             </Text>
-            <TouchableOpacity onPress={() => handleDelete(habit.id)} style={s.mobileDeleteBtn}>
-              <Text style={s.deleteBtn}>✕</Text>
-            </TouchableOpacity>
+            {isCurrentWeek && (
+              <TouchableOpacity onPress={() => handleDelete(habit.id)} style={s.mobileDeleteBtn}>
+                <Text style={s.deleteBtn}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-
-        {/* Day dots */}
+        
         <View style={s.mobileDayRow}>
           {DAYS.map((_, i) => {
-            const checked = thisWeek[habit.id]?.[i] ?? false;
-            const isToday = i === weekKeys.today;
+            const state   = getDayState(habit.id, i);
+            const isToday = i === todayIndex;
             return (
               <TouchableOpacity
                 key={i}
                 onPress={() => handleToggle(habit.id, i)}
+                onLongPress={() => handleBlock(habit.id, i)}
+                disabled={!isCurrentWeek}
                 style={[
                   s.mobileDayDot,
                   isToday && s.mobileDayDotToday,
-                  checked && !isToday && s.mobileDayDotChecked,
-                  checked && isToday && s.mobileDayDotCheckedToday,
+                  state === 'checked' && !isToday && s.mobileDayDotChecked,
+                  state === 'checked' && isToday && s.mobileDayDotCheckedToday,
+                  state === 'blocked' && s.mobileDayDotBlocked,
+                  !isCurrentWeek && { opacity: 0.7 },
                 ]}
               >
-                <Text 
-                  style={[
+                {state === 'blocked' ? (
+                  <Text style={s.mobileBlockMark}>✕</Text>
+                ) : (
+                  <Text style={[
                     s.mobileDayLabel,
-                    checked && !isToday && s.mobileDayLabelChecked,
-                    checked && isToday && { color: '#0d1f0d' },
-                    !checked && isToday && { color: theme.todayText },
-                  ]}
-                >
-                {DAY_INITIALS[i]}
-                </Text>
+                    state === 'checked' && !isToday && s.mobileDayLabelChecked,
+                    state === 'checked' && isToday && { color: '#0d1f0d' },
+                    state === 'empty' && isToday && { color: theme.todayText },
+                  ]}>
+                    {DAY_INITIALS[i]}
+                  </Text>
+                )}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Reorder */}
-        <View style={s.mobileOrderRow}>
-          <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
-            <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => moveHabit(index, 1)} disabled={index === habits.length - 1}>
-            <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
-          </TouchableOpacity>
-        </View>
+        {isCurrentWeek && (
+          <View style={s.mobileOrderRow}>
+            <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
+              <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => moveHabit(index, 1)} disabled={index === habits.length - 1}>
+              <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
 
-  // ── Desktop Row ───────────────────────────────────────────
+  // ── Desktop Row ───────────────────────────────────────
 
   const renderDesktopRow = ({ item: habit, index }) => {
-    const tw      = count(thisWeek, habit.id);
-    const lw      = count(lastWeek, habit.id);
+    const tw      = count(thisChecks, thisBlocks, habit.id);
+    const pw      = count(prevChecks, {}, habit.id);
     const goalMet = tw >= habit.perweek;
 
     return (
@@ -219,42 +354,50 @@ export default function HabitTable() {
         habit.color && { backgroundColor: habit.color + theme.rowColorOpacity },
         goalMet && s.goalMet,
       ]}>
-        <View style={s.orderBtns}>
-          <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
-            <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => moveHabit(index, 1)} disabled={index === habits.length - 1}>
-            <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
-          </TouchableOpacity>
-        </View>
+        {isCurrentWeek && (
+          <View style={s.orderBtns}>
+            <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
+              <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => moveHabit(index, 1)} disabled={index === habits.length - 1}>
+              <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {!isCurrentWeek && <View style={s.orderBtns} />}
 
         <TouchableOpacity style={s.habitCellBtn} onPress={() => openEdit(habit)}>
           <Text style={s.habitCell} numberOfLines={2}>{habit.name}</Text>
-          {habit.notes ? (
-            <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text>
-          ) : null}
+          {habit.notes ? <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text> : null}
         </TouchableOpacity>
 
         {DAYS.map((_, i) => {
-          const checked = thisWeek[habit.id]?.[i] ?? false;
+          const state   = getDayState(habit.id, i);
+          const isToday = i === todayIndex;
           return (
-            <TouchableOpacity
+            <DesktopDayCell
               key={i}
-              style={[s.dayCell, i === weekKeys.today && s.todayCell]}
-              onPress={() => handleToggle(habit.id, i)}
-            >
-              {checked && <Text style={s.checkMark}>✓</Text>}
-            </TouchableOpacity>
+              habitId={habit.id}
+              dayIndex={i}
+              state={state}
+              isToday={isToday}
+              isCurrentWeek={isCurrentWeek}
+              onToggle={() => handleToggle(habit.id, i)}
+              onBlock={() => handleBlock(habit.id, i)}
+              s={s}
+            />
           );
         })}
 
         <Text style={s.statCell}>{tw}</Text>
-        <Text style={s.statCell}>{lw}</Text>
+        <Text style={s.statCell}>{pw}</Text>
         <Text style={s.statCell}>{habit.perweek}</Text>
 
-        <TouchableOpacity style={s.actionCell} onPress={() => handleDelete(habit.id)}>
-          <Text style={s.deleteBtn}>✕</Text>
-        </TouchableOpacity>
+        {isCurrentWeek ? (
+          <TouchableOpacity style={s.actionCell} onPress={() => handleDelete(habit.id)}>
+            <Text style={s.deleteBtn}>✕</Text>
+          </TouchableOpacity>
+        ) : <View style={s.actionCell} />}
       </View>
     );
   };
@@ -263,71 +406,29 @@ export default function HabitTable() {
     <View style={s.center}><Text style={s.muted}>Loading...</Text></View>
   );
 
-  // ── Modal ─────────────────────────────────────────────────
+  // ── Modal ─────────────────────────────────────────────
 
   const FormModal = (
-    <Modal
-      visible={modal.mode !== null}
-      transparent
-      animationType="fade"
-      onRequestClose={closeModal}
-    >
+    <Modal visible={modal.mode !== null} transparent animationType="fade" onRequestClose={closeModal}>
       <View style={s.modalOverlay}>
-        <ScrollView
-          contentContainerStyle={{ alignItems: 'center', justifyContent: 'center', flexGrow: 1, padding: 16 }}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={{ alignItems: 'center', justifyContent: 'center', flexGrow: 1, padding: 16 }} keyboardShouldPersistTaps="handled">
           <View style={[s.modalBox, isMobile && { width: '100%', maxWidth: 420 }]}>
-            <Text style={s.modalTitle}>
-              {modal.mode === 'add' ? 'New Habit' : 'Edit Habit'}
-            </Text>
+            <Text style={s.modalTitle}>{modal.mode === 'add' ? 'New Habit' : 'Edit Habit'}</Text>
 
             <Text style={s.modalLabel}>Name</Text>
-            <TextInput
-              style={s.input}
-              value={form.name}
-              onChangeText={v => setField('name', v)}
-              placeholder="e.g. Go to gym"
-              placeholderTextColor={theme.textSub}
-              maxLength={50}
-              autoFocus
-            />
+            <TextInput style={s.input} value={form.name} onChangeText={v => setField('name', v)} placeholder="e.g. Go to gym" placeholderTextColor={theme.textSub} maxLength={50} autoFocus />
 
             <Text style={s.modalLabel}>Goal (days / week)</Text>
-            <TextInput
-              style={[s.input, { width: 100 }]}
-              value={form.goal}
-              onChangeText={v => setField('goal', v)}
-              placeholder="1–7"
-              placeholderTextColor={theme.textSub}
-              keyboardType="numeric"
-              maxLength={1}
-            />
+            <TextInput style={[s.input, { width: 100 }]} value={form.goal} onChangeText={v => setField('goal', v)} placeholder="1–7" placeholderTextColor={theme.textSub} keyboardType="numeric" maxLength={1} />
 
             <Text style={s.modalLabel}>Notes</Text>
-            <TextInput
-              style={[s.input, s.notesInput]}
-              value={form.notes}
-              onChangeText={v => setField('notes', v)}
-              placeholder="Optional notes..."
-              placeholderTextColor={theme.textSub}
-              multiline
-              maxLength={1000}
-            />
+            <TextInput style={[s.input, s.notesInput]} value={form.notes} onChangeText={v => setField('notes', v)} placeholder="Optional notes..." placeholderTextColor={theme.textSub} multiline maxLength={1000} />
             <Text style={s.charCount}>{form.notes.length}/1000</Text>
 
             <Text style={s.modalLabel}>Row Color</Text>
             <View style={s.colorGrid}>
               {ROW_COLORS.map((c, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setField('color', c)}
-                  style={[
-                    s.colorSwatch,
-                    { backgroundColor: c ?? theme.border },
-                    form.color === c && s.colorSwatchSelected,
-                  ]}
-                >
+                <TouchableOpacity key={i} onPress={() => setField('color', c)} style={[s.colorSwatch, { backgroundColor: c ?? theme.border }, form.color === c && s.colorSwatchSelected]}>
                   {c === null && <Text style={{ color: theme.textSub, fontSize: 10 }}>✕</Text>}
                 </TouchableOpacity>
               ))}
@@ -336,12 +437,8 @@ export default function HabitTable() {
             {form.error ? <Text style={s.errorText}>{form.error}</Text> : null}
 
             <View style={s.modalActions}>
-              <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
-                <Text style={s.saveBtnText}>{modal.mode === 'add' ? 'Add' : 'Save'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={closeModal} style={s.cancelBtn}>
-                <Text style={s.cancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={s.saveBtn} onPress={handleSave}><Text style={s.saveBtnText}>{modal.mode === 'add' ? 'Add' : 'Save'}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={closeModal} style={s.cancelBtn}><Text style={s.cancelText}>Cancel</Text></TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -349,35 +446,25 @@ export default function HabitTable() {
     </Modal>
   );
 
-  // ── Mobile Layout ─────────────────────────────────────────
+  // ── Mobile Layout ─────────────────────────────────────
 
   if (isMobile) {
     return (
       <View style={[s.container, { padding: 12 }]}>
-        <Text style={[s.dateHeader, { marginBottom: 16 }]}>{todayStr}</Text>
+        {WeekNav}
         <FlatList
           data={habits}
           keyExtractor={item => String(item.id)}
           renderItem={renderMobileCard}
-          ListEmptyComponent={
-            <View style={s.emptyState}>
-              <Text style={s.emptyText}>No habits yet. Add one below.</Text>
-            </View>
-          }
+          ListEmptyComponent={<View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>}
           ListFooterComponent={
             <>
-              {/* Mobile Sum */}
               <View style={s.mobileSumRow}>
-                <Text style={[s.muted, { fontFamily: 'Raleway_600SemiBold' }]}>
-                  This week: {totalThis} / {totalGoal}
-                </Text>
-                <Text style={s.muted}>Last week: {totalLast}</Text>
+                <Text style={[s.muted, { fontFamily: 'Raleway_600SemiBold' }]}>This week: {totalThis} / {totalGoal}</Text>
+                <Text style={s.muted}>Prev week: {totalPrev}</Text>
               </View>
-
-              {habits.length < MAX_HABITS && (
-                <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
-                  <Text style={s.addHabitText}>+ Add Habit</Text>
-                </TouchableOpacity>
+              {isCurrentWeek && habits.length < MAX_HABITS && (
+                <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}><Text style={s.addHabitText}>+ Add Habit</Text></TouchableOpacity>
               )}
               <View style={{ height: 40 }} />
             </>
@@ -388,21 +475,22 @@ export default function HabitTable() {
     );
   }
 
-  // ── Desktop Layout ────────────────────────────────────────
+  // ── Desktop Layout ────────────────────────────────────
 
   return (
     <View style={s.container}>
-      <Text style={s.dateHeader}>{todayStr}</Text>
+      {WeekNav}
+
       <View style={s.headerRow}>
         <View style={s.orderBtns} />
         <Text style={[s.header, s.habitHeader]}>Habit</Text>
         {DAYS.map((d, i) => (
           <View key={d} style={s.dayCellHeader}>
-            <Text style={[s.header, i === weekKeys.today && s.todayHeader]}>{d}</Text>
+            <Text style={[s.header, i === todayIndex && s.todayHeader]}>{d}</Text>
           </View>
         ))}
         <Text style={[s.header, s.statCellHeader]}>This Wk</Text>
-        <Text style={[s.header, s.statCellHeader]}>Last Wk</Text>
+        <Text style={[s.header, s.statCellHeader]}>Prev Wk</Text>
         <Text style={[s.header, s.statCellHeader]}>Goal</Text>
         <View style={s.actionCell} />
       </View>
@@ -411,11 +499,7 @@ export default function HabitTable() {
         data={habits}
         keyExtractor={item => String(item.id)}
         renderItem={renderDesktopRow}
-        ListEmptyComponent={
-          <View style={s.emptyState}>
-            <Text style={s.emptyText}>No habits yet. Add one below.</Text>
-          </View>
-        }
+        ListEmptyComponent={<View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>}
         ListFooterComponent={
           <>
             <View style={[s.row, s.sumRow]}>
@@ -423,20 +507,16 @@ export default function HabitTable() {
               <Text style={[s.habitCellText, s.bold]}>Sum</Text>
               {DAYS.map((_, i) => <View key={i} style={s.dayCell} />)}
               <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
-              <Text style={[s.statCell, s.bold]}>{totalLast}</Text>
+              <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
               <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
               <View style={s.actionCell} />
             </View>
-
-            {habits.length < MAX_HABITS && (
-              <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
-                <Text style={s.addHabitText}>+ Add Habit</Text>
-              </TouchableOpacity>
+            {isCurrentWeek && habits.length < MAX_HABITS && (
+              <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}><Text style={s.addHabitText}>+ Add Habit</Text></TouchableOpacity>
             )}
           </>
         }
       />
-
       {FormModal}
     </View>
   );
@@ -449,7 +529,14 @@ function makeStyles(t) {
     muted:               { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 14 },
     emptyState:          { paddingVertical: 48, alignItems: 'center' },
     emptyText:           { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 15 },
-    dateHeader: { color: t.textSub, fontFamily: 'Raleway_600SemiBold', fontSize: 13, letterSpacing: 0.8, marginBottom: 20 },
+
+    // ── Week Nav ──
+    weekNav:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    weekArrow:           { paddingHorizontal: 16, paddingVertical: 8 },
+    weekArrowText:       { fontSize: 20, color: t.accent, fontFamily: 'Raleway_700Bold' },
+    weekCenter:          { alignItems: 'center', minWidth: 220 },
+    weekRange:           { color: t.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold', letterSpacing: 0.3 },
+    weekTodayBtn:        { color: t.accent, fontSize: 12, fontFamily: 'Raleway_600SemiBold', marginTop: 4 },
 
     // ── Desktop ──
     headerRow:           { flexDirection: 'row', alignItems: 'center', minHeight: 64, borderBottomWidth: 2, borderColor: t.accent, marginBottom: 2 },
@@ -471,6 +558,7 @@ function makeStyles(t) {
     dayCell:             { width: 80, alignItems: 'center', justifyContent: 'center', height: 60 },
     todayCell:           { backgroundColor: t.today, borderRadius: 6 },
     checkMark:           { fontSize: 20, color: t.checkMark, fontFamily: 'Raleway_700Bold' },
+    blockMark:           { fontSize: 18, color: t.delete, fontFamily: 'Raleway_700Bold', opacity: 0.6 },
     statCell:            { width: 88, textAlign: 'center', color: t.text, fontSize: 14, fontFamily: 'Raleway_400Regular' },
     bold:                { fontFamily: 'Raleway_600SemiBold', color: t.text },
     actionCell:          { width: 44, alignItems: 'center' },
@@ -491,9 +579,11 @@ function makeStyles(t) {
     mobileDayDot:        { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: t.border, backgroundColor: t.bg },
     mobileDayDotToday:   { borderColor: t.accent, backgroundColor: t.today },
     mobileDayDotChecked: { backgroundColor: t.accent, borderColor: t.accent },
-    mobileDayDotCheckedToday: { backgroundColor: '#a6e3a1', borderColor: '#a6e3a1'},
+    mobileDayDotCheckedToday: { backgroundColor: '#a6e3a1', borderColor: '#a6e3a1' },
+    mobileDayDotBlocked: { backgroundColor: t.surface, borderColor: t.delete, borderStyle: 'dashed' },
     mobileDayLabel:      { fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: t.textSub },
     mobileDayLabelChecked: { color: t.accentText },
+    mobileBlockMark:     { fontSize: 14, color: t.delete, fontFamily: 'Raleway_700Bold', opacity: 0.6 },
     mobileOrderRow:      { flexDirection: 'row', gap: 16 },
     mobileSumRow:        { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderTopWidth: 1, borderColor: t.border, marginTop: 8 },
 

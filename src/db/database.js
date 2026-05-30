@@ -21,9 +21,7 @@ export async function getSession() {
 // --- Habits ---
 export async function getHabits() {
   const { data, error } = await supabase
-    .from('habits')
-    .select('*')
-    .order('ord', { ascending: true });
+    .from('habits').select('*').order('ord', { ascending: true });
   if (error) throw error;
   return data;
 }
@@ -35,17 +33,14 @@ export async function addHabit(name, perweek, color = null, notes = null) {
   const { data, error } = await supabase
     .from('habits')
     .insert({ name, perweek, color, notes, ord: ord + 1 })
-    .select()
-    .single();
+    .select().single();
   if (error) throw error;
   return data;
 }
 
 export async function updateHabit(id, name, perweek, color = null, notes = null) {
   const { error } = await supabase
-    .from('habits')
-    .update({ name, perweek, color, notes })
-    .eq('id', id);
+    .from('habits').update({ name, perweek, color, notes }).eq('id', id);
   if (error) throw error;
 }
 
@@ -61,6 +56,24 @@ export async function reorderHabits(orderedHabits) {
 }
 
 // --- Completions ---
+
+// Used by HabitTable — returns both checked and blocked arrays
+export async function getWeekData(weekKey) {
+  const { data, error } = await supabase
+    .from('completions').select('*').eq('week_key', weekKey);
+  if (error) throw error;
+  const checks = {};
+  const blocks = {};
+  for (const row of data) {
+    if (!checks[row.habit_id]) checks[row.habit_id] = Array(7).fill(false);
+    if (!blocks[row.habit_id]) blocks[row.habit_id] = Array(7).fill(false);
+    checks[row.habit_id][row.day] = row.checked;
+    blocks[row.habit_id][row.day] = row.blocked ?? false;
+  }
+  return { checks, blocks };
+}
+
+// Used by Analytics / You — blocked days count as unchecked
 export async function getCompletionsForWeek(weekKey) {
   const { data, error } = await supabase
     .from('completions').select('*').eq('week_key', weekKey);
@@ -68,11 +81,12 @@ export async function getCompletionsForWeek(weekKey) {
   const result = {};
   for (const row of data) {
     if (!result[row.habit_id]) result[row.habit_id] = Array(7).fill(false);
-    result[row.habit_id][row.day] = row.checked;
+    result[row.habit_id][row.day] = row.checked && !(row.blocked ?? false);
   }
   return result;
 }
 
+// Used by Analytics / You — blocked days excluded from counts
 export async function getAllCompletions() {
   const { data, error } = await supabase.from('completions').select('*');
   if (error) throw error;
@@ -80,7 +94,7 @@ export async function getAllCompletions() {
   for (const row of data) {
     if (!result[row.week_key]) result[row.week_key] = {};
     if (!result[row.week_key][row.habit_id]) result[row.week_key][row.habit_id] = Array(7).fill(false);
-    result[row.week_key][row.habit_id][row.day] = row.checked;
+    result[row.week_key][row.habit_id][row.day] = row.checked && !(row.blocked ?? false);
   }
   return result;
 }
@@ -88,7 +102,15 @@ export async function getAllCompletions() {
 export async function toggleCompletion(habitId, weekKey, day, checked) {
   const { error } = await supabase
     .from('completions')
-    .upsert({ habit_id: habitId, week_key: weekKey, day, checked },
+    .upsert({ habit_id: habitId, week_key: weekKey, day, checked, blocked: false },
+             { onConflict: 'habit_id,week_key,day' });
+  if (error) throw error;
+}
+
+export async function toggleBlock(habitId, weekKey, day, blocked) {
+  const { error } = await supabase
+    .from('completions')
+    .upsert({ habit_id: habitId, week_key: weekKey, day, blocked, checked: false },
              { onConflict: 'habit_id,week_key,day' });
   if (error) throw error;
 }
