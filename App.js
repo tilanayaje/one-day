@@ -32,20 +32,34 @@ function AppNavigator() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+
+    // Failsafe — if session check hangs, show login after 3s
+    const timeout = setTimeout(() => setLoading(false), 3000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
-  if (loading) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
+  if (loading) return (
+  <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
+    <Text style={{ color: theme.textSub, fontFamily: 'Raleway_400Regular', fontSize: 16 }}>Loading...</Text>
+  </View>
+  );
   if (!session) return <Login />;
 
   const goToYou = () => {
@@ -224,7 +238,7 @@ export default function App() {
     Raleway_700Bold,
   });
 
-  if (!fontsLoaded) return <View style={{ flex: 1 }} />;
+  if (!fontsLoaded && Platform.OS !== 'web') return <View style={{ flex: 1 }} />;
 
   return (
     <ThemeProvider>
