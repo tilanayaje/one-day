@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput,
-  StyleSheet, FlatList, Modal, ScrollView, useWindowDimensions,
+  StyleSheet, FlatList, Modal, ScrollView, useWindowDimensions, Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -53,24 +53,81 @@ function formatWeekRange(weekKey) {
 
 function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, onToggle, onBlock, s }) {
   const ref = React.useRef(null);
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  const pop = () => {
+    scale.setValue(0.85);
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 4,
+      tension: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+  
+  function MobileDayDot({ state, isToday, isCurrentWeek, onToggle, onBlock, dayInitial, s, theme }) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  const pop = () => {
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.3, duration: 80, useNativeDriver: false }),
+      Animated.timing(scale, { toValue: 1, duration: 80, useNativeDriver: false }),
+    ]).start();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={() => { pop(); onToggle(); }}
+      onLongPress={() => { pop(); onBlock(); }}
+      disabled={!isCurrentWeek}
+      style={[
+        s.mobileDayDot,
+        isToday && s.mobileDayDotToday,
+        state === 'checked' && !isToday && s.mobileDayDotChecked,
+        state === 'checked' && isToday && s.mobileDayDotCheckedToday,
+        state === 'blocked' && s.mobileDayDotBlocked,
+        !isCurrentWeek && { opacity: 0.7 },
+      ]}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {state === 'blocked' ? (
+          <Text style={s.mobileBlockMark}>✕</Text>
+        ) : (
+          <Text style={[
+            s.mobileDayLabel,
+            state === 'checked' && !isToday && s.mobileDayLabelChecked,
+            state === 'checked' && isToday && { color: '#0d1f0d' },
+            state === 'empty' && isToday && { color: theme.todayText },
+          ]}>
+            {dayInitial}
+          </Text>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
 
   React.useEffect(() => {
     const el = ref.current;
     if (!el || !isCurrentWeek) return;
-    const handler = (e) => { e.preventDefault(); onBlock(); };
+    const handler = (e) => { e.preventDefault(); pop(); onBlock(); };
     el.addEventListener('contextmenu', handler);
     return () => el.removeEventListener('contextmenu', handler);
-  }, [isCurrentWeek, habitId, dayIndex]);
+  }, [isCurrentWeek, onBlock]);
+
+  const handlePress = () => { pop(); onToggle(); };
 
   return (
     <TouchableOpacity
       ref={ref}
       style={[s.dayCell, isToday && s.todayCell, !isCurrentWeek && { opacity: 0.7 }]}
-      onPress={onToggle}
+      onPress={handlePress}
       disabled={!isCurrentWeek}
     >
-      {state === 'checked' && <Text style={s.checkMark}>✓</Text>}
-      {state === 'blocked' && <Text style={s.blockMark}>✕</Text>}
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {state === 'checked' && <Text style={s.checkMark}>✓</Text>}
+        {state === 'blocked' && <Text style={s.blockMark}>✕</Text>}
+      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -292,39 +349,23 @@ export default function HabitTable() {
         </View>
         
         <View style={s.mobileDayRow}>
-          {DAYS.map((_, i) => {
-            const state   = getDayState(habit.id, i);
-            const isToday = i === todayIndex;
-            return (
-              <TouchableOpacity
-                key={i}
-                onPress={() => handleToggle(habit.id, i)}
-                onLongPress={() => handleBlock(habit.id, i)}
-                disabled={!isCurrentWeek}
-                style={[
-                  s.mobileDayDot,
-                  isToday && s.mobileDayDotToday,
-                  state === 'checked' && !isToday && s.mobileDayDotChecked,
-                  state === 'checked' && isToday && s.mobileDayDotCheckedToday,
-                  state === 'blocked' && s.mobileDayDotBlocked,
-                  !isCurrentWeek && { opacity: 0.7 },
-                ]}
-              >
-                {state === 'blocked' ? (
-                  <Text style={s.mobileBlockMark}>✕</Text>
-                ) : (
-                  <Text style={[
-                    s.mobileDayLabel,
-                    state === 'checked' && !isToday && s.mobileDayLabelChecked,
-                    state === 'checked' && isToday && { color: '#0d1f0d' },
-                    state === 'empty' && isToday && { color: theme.todayText },
-                  ]}>
-                    {DAY_INITIALS[i]}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+        {DAYS.map((_, i) => {
+          const state   = getDayState(habit.id, i);
+          const isToday = i === todayIndex;
+          return (
+            <MobileDayDot
+              key={i}
+              state={state}
+              isToday={isToday}
+              isCurrentWeek={isCurrentWeek}
+              onToggle={() => handleToggle(habit.id, i)}
+              onBlock={() => handleBlock(habit.id, i)}
+              dayInitial={DAY_INITIALS[i]}
+              s={s}
+              theme={theme}
+            />
+          );
+        })}
         </View>
 
         {isCurrentWeek && (
