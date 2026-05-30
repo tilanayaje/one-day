@@ -306,14 +306,14 @@ export default function HabitTable() {
     if (modal.mode === 'add') await addHabit(name, goal, form.color, notes);
     else await updateHabit(modal.habit.id, name, goal, form.color, notes);
     closeModal();
-    loadData();
+    loadData(weekOffset);
   };
 
   const handleDelete = async (id) => {
     const habit = habits.find(h => h.id === id);
     if (!window.confirm(`Delete "${habit?.name}"? This cannot be undone.`)) return;
     await deleteHabit(id);
-    loadData();
+    loadData(weekOffset);
   };
 
   const moveHabit = async (index, dir) => {
