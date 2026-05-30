@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View, Modal, Platform } from 'react-native';
+import { View, Modal, Platform, TouchableOpacity, Text } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { TouchableOpacity, Text } from 'react-native';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { supabase } from './src/db/supabase';
 
@@ -41,24 +40,18 @@ function AppNavigator() {
         setLoading(false);
       });
 
-    // Failsafe — if session check hangs, show login after 3s
-    const timeout = setTimeout(() => setLoading(false), 3000);
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
     });
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) return (
-  <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
-    <Text style={{ color: theme.textSub, fontFamily: 'Raleway_400Regular', fontSize: 16 }}>Loading...</Text>
-  </View>
+    <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: theme.textSub, fontFamily: 'Raleway_400Regular', fontSize: 16 }}>Loading...</Text>
+    </View>
   );
   if (!session) return <Login />;
 
@@ -238,7 +231,7 @@ export default function App() {
     Raleway_700Bold,
   });
 
-  if (!fontsLoaded && Platform.OS !== 'web') return <View style={{ flex: 1 }} />;
+  if (!fontsLoaded) return <View style={{ flex: 1 }} />;
 
   return (
     <ThemeProvider>
