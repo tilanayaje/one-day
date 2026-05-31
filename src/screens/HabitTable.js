@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput,
-  StyleSheet, FlatList, Modal, ScrollView, useWindowDimensions, Animated,
+  View, Text, TouchableOpacity, TextInput, Animated,
+  StyleSheet, FlatList, Modal, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -9,12 +9,14 @@ import {
   getHabits, addHabit, deleteHabit, updateHabit,
   getWeekData, toggleCompletion, toggleBlock, reorderHabits,
 } from '../db/database';
-import { getWeekKey } from '../utils/date';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// ── Constants ────────────────────────────────────────────
+
+const DAYS         = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MAX_HABITS = 20;
-const MOBILE_BREAKPOINT = 768;
+const MAX_HABITS   = 20;
+const MOBILE_BP    = 768;
+const EMPTY_FORM   = { name: '', goal: '7', color: null, notes: '', error: '' };
 
 const ROW_COLORS = [
   null,
@@ -26,30 +28,31 @@ const ROW_COLORS = [
   '#FD79A8', '#FF6EB4', '#B8860B',
 ];
 
-const EMPTY_FORM = { name: '', goal: '7', color: null, notes: '', error: '' };
+// ── Week helpers ─────────────────────────────────────────
 
-// ── Week helpers ──────────────────────────────────────────
-
+// Returns the YYYY-MM-DD of the Sunday starting the week, offset by N weeks from today
 function getWeekKeyWithOffset(offset) {
   const now = new Date();
   now.setDate(now.getDate() + offset * 7);
-  const day = now.getDay();
-  now.setDate(now.getDate() - day);
+  now.setDate(now.getDate() - now.getDay());
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
+// Formats a week key into "May 25 – May 31, 2026"
 function formatWeekRange(weekKey) {
   const start = new Date(weekKey + 'T00:00:00');
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   const opts = { month: 'short', day: 'numeric' };
-  const startStr = start.toLocaleDateString('en-US', opts);
-  const endStr = end.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
-  return `${startStr} – ${endStr}`;
+  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`;
 }
+
+// ── Desktop day cell ─────────────────────────────────────
+// Uses native addEventListener for right-click (React Native Web
+// doesn't forward onContextMenu through TouchableOpacity)
 
 function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, onToggle, onBlock, s }) {
   const ref = React.useRef(null);
@@ -57,56 +60,10 @@ function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, onTo
 
   const pop = () => {
     scale.setValue(0.85);
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 4,
-      tension: 300,
-      useNativeDriver: false,
-    }).start();
+    Animated.spring(scale, { toValue: 1, friction: 4, tension: 300, useNativeDriver: false }).start();
   };
 
-  function MobileDayDot({ state, isToday, isCurrentWeek, onToggle, onBlock, dayInitial, s, theme }) {
-  const scale = React.useRef(new Animated.Value(1)).current;
-
-  const pop = () => {
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 1.3, duration: 80, useNativeDriver: false }),
-      Animated.timing(scale, { toValue: 1, duration: 80, useNativeDriver: false }),
-    ]).start();
-  };
-
-  return (
-    <TouchableOpacity
-      onPress={() => { pop(); onToggle(); }}
-      onLongPress={() => { pop(); onBlock(); }}
-      disabled={!isCurrentWeek}
-      style={[
-        s.mobileDayDot,
-        isToday && s.mobileDayDotToday,
-        state === 'checked' && !isToday && s.mobileDayDotChecked,
-        state === 'checked' && isToday && s.mobileDayDotCheckedToday,
-        state === 'blocked' && s.mobileDayDotBlocked,
-        !isCurrentWeek && { opacity: 0.7 },
-      ]}
-    >
-      <Animated.View style={{ transform: [{ scale }] }}>
-        {state === 'blocked' ? (
-          <Text style={s.mobileBlockMark}>✕</Text>
-        ) : (
-          <Text style={[
-            s.mobileDayLabel,
-            state === 'checked' && !isToday && s.mobileDayLabelChecked,
-            state === 'checked' && isToday && { color: '#0d1f0d' },
-            state === 'empty' && isToday && { color: theme.todayText },
-          ]}>
-            {dayInitial}
-          </Text>
-        )}
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
-
+  // Attach right-click handler directly to the DOM element
   React.useEffect(() => {
     const el = ref.current;
     if (!el || !isCurrentWeek) return;
@@ -115,13 +72,11 @@ function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, onTo
     return () => el.removeEventListener('contextmenu', handler);
   }, [isCurrentWeek, onBlock]);
 
-  const handlePress = () => { pop(); onToggle(); };
-
   return (
     <TouchableOpacity
       ref={ref}
       style={[s.dayCell, isToday && s.todayCell, !isCurrentWeek && { opacity: 0.7 }]}
-      onPress={handlePress}
+      onPress={() => { pop(); onToggle(); }}
       disabled={!isCurrentWeek}
     >
       <Animated.View style={{ transform: [{ scale }] }}>
@@ -132,17 +87,15 @@ function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, onTo
   );
 }
 
+// ── Mobile day dot ───────────────────────────────────────
+// Tap = check, long press = block
+
 function MobileDayDot({ state, isToday, isCurrentWeek, onToggle, onBlock, dayInitial, s, theme }) {
   const scale = React.useRef(new Animated.Value(1)).current;
 
   const pop = () => {
     scale.setValue(0.85);
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 4,
-      tension: 300,
-      useNativeDriver: false,
-    }).start();
+    Animated.spring(scale, { toValue: 1, friction: 4, tension: 300, useNativeDriver: false }).start();
   };
 
   return (
@@ -177,13 +130,15 @@ function MobileDayDot({ state, isToday, isCurrentWeek, onToggle, onBlock, dayIni
   );
 }
 
+// ── Main component ───────────────────────────────────────
+
 export default function HabitTable() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
-  const isMobile = width < MOBILE_BREAKPOINT;
+  const isMobile = width < MOBILE_BP;
   const s = makeStyles(theme);
-  const modalModeRef = React.useRef('add');
 
+  // All week data in one object — updated atomically to prevent flicker
   const [data, setData] = useState({
     habits: [], thisChecks: {}, thisBlocks: {}, prevChecks: {},
     loading: true, todayIndex: new Date().getDay(), isCurrentWeek: true,
@@ -192,12 +147,17 @@ export default function HabitTable() {
   const todayIndex    = data.todayIndex;
   const isCurrentWeek = data.isCurrentWeek;
 
-  const [modal,      setModal]      = useState({ mode: null, habit: null });
-  const [form,       setForm]       = useState(EMPTY_FORM);
+  const [modal, setModal]       = useState({ mode: null, habit: null });
+  const [form, setForm]         = useState(EMPTY_FORM);
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Ref prevents modal title from flickering to "Edit" on close
+  const modalModeRef = React.useRef('add');
 
   const currentWeekKey  = getWeekKeyWithOffset(weekOffset);
   const previousWeekKey = getWeekKeyWithOffset(weekOffset - 1);
+
+  // ── Data loading ────────────────────────────────────
 
   const loadData = async (offset, showLoader = false) => {
     const wk   = getWeekKeyWithOffset(offset);
@@ -214,26 +174,28 @@ export default function HabitTable() {
       loading: false,
       todayIndex: offset === 0 ? new Date().getDay() : -1,
       isCurrentWeek: offset === 0,
-      });
-    };
+    });
+  };
 
-    const firstLoad = React.useRef(true);
+  // Load on first focus
+  const firstLoad = React.useRef(true);
+  useFocusEffect(useCallback(() => {
+    loadData(weekOffset, firstLoad.current);
+    firstLoad.current = false;
+  }, []));
 
-    useFocusEffect(useCallback(() => {
-      loadData(weekOffset, firstLoad.current);
-      firstLoad.current = false;
-    }, []));
+  // Reload when week changes
+  useEffect(() => {
+    if (!firstLoad.current) loadData(weekOffset);
+  }, [weekOffset]);
 
-    useEffect(() => {
-      if (!firstLoad.current) loadData(weekOffset);
-    }, [weekOffset]);
+  // ── Check & block handlers ──────────────────────────
 
-  // ── Handlers ──────────────────────────────────────────
-
-    const handleToggle = async (habitId, dayIndex) => {
+  const handleToggle = async (habitId, dayIndex) => {
     if (!isCurrentWeek) return;
     const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
     if (isBlocked) {
+      // Unblock and check in one move
       setData(d => ({
         ...d,
         thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
@@ -254,6 +216,7 @@ export default function HabitTable() {
     if (!isCurrentWeek) return;
     const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
     if (!isBlocked) {
+      // Block and clear any check
       setData(d => ({
         ...d,
         thisBlocks: { ...d.thisBlocks, [habitId]: (d.thisBlocks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
@@ -261,6 +224,7 @@ export default function HabitTable() {
       }));
       await toggleBlock(habitId, currentWeekKey, dayIndex, true);
     } else {
+      // Unblock
       setData(d => ({
         ...d,
         thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
@@ -268,6 +232,8 @@ export default function HabitTable() {
       await toggleBlock(habitId, currentWeekKey, dayIndex, false);
     }
   };
+
+  // ── CRUD handlers ───────────────────────────────────
 
   const openAdd = () => {
     modalModeRef.current = 'add';
@@ -282,18 +248,18 @@ export default function HabitTable() {
   };
 
   const closeModal = () => setModal({ mode: null, habit: null });
-  const setField   = (key, val) => setForm(f => ({ ...f, [key]: val, error: '' }));
+  const setField = (key, val) => setForm(f => ({ ...f, [key]: val, error: '' }));
 
   const validate = () => {
     const name = form.name.trim();
     const goal = parseInt(form.goal);
-    if (!name)                                                                     return 'Name is required.';
-    if (name.length > 50)                                                          return 'Max 50 characters.';
-    if (isNaN(goal) || goal < 1 || goal > 7)                                       return 'Goal must be 1–7.';
-    if (modal.mode === 'add' && habits.length >= MAX_HABITS)                       return `Max ${MAX_HABITS} habits.`;
+    if (!name)                        return 'Name is required.';
+    if (name.length > 50)             return 'Max 50 characters.';
+    if (isNaN(goal) || goal < 1 || goal > 7) return 'Goal must be 1–7.';
+    if (modal.mode === 'add' && habits.length >= MAX_HABITS) return `Max ${MAX_HABITS} habits.`;
     if (habits.some(h => h.id !== modal.habit?.id && h.name.toLowerCase() === name.toLowerCase()))
-                                                                                   return 'Name already exists.';
-    if (form.notes.length > 1000)                                                  return 'Notes max 1000 characters.';
+      return 'Name already exists.';
+    if (form.notes.length > 1000)     return 'Notes max 1000 characters.';
     return null;
   };
 
@@ -325,8 +291,9 @@ export default function HabitTable() {
     await reorderHabits(next);
   };
 
-  // ── Derived ───────────────────────────────────────────
+  // ── Derived values ──────────────────────────────────
 
+  // Count checks for a habit, excluding blocked days
   const count = (checks, blocks, id) => {
     const c = checks[id] ?? [];
     const b = blocks[id] ?? [];
@@ -337,7 +304,14 @@ export default function HabitTable() {
   const totalPrev = habits.reduce((sum, h) => sum + count(prevChecks, {}, h.id), 0);
   const totalGoal = habits.reduce((sum, h) => sum + h.perweek, 0);
 
-  // ── Week Navigation ───────────────────────────────────
+  // Returns 'checked', 'blocked', or 'empty'
+  const getDayState = (habitId, dayIndex) => {
+    if (thisBlocks[habitId]?.[dayIndex]) return 'blocked';
+    if (thisChecks[habitId]?.[dayIndex]) return 'checked';
+    return 'empty';
+  };
+
+  // ── Week navigation bar ─────────────────────────────
 
   const WeekNav = (
     <View style={[s.weekNav, isMobile && { marginBottom: 12 }]}>
@@ -362,21 +336,12 @@ export default function HabitTable() {
     </View>
   );
 
-  // ── Day Cell Helper ───────────────────────────────────
-
-  const getDayState = (habitId, dayIndex) => {
-    const blocked = thisBlocks[habitId]?.[dayIndex] ?? false;
-    const checked = thisChecks[habitId]?.[dayIndex] ?? false;
-    if (blocked) return 'blocked';
-    if (checked) return 'checked';
-    return 'empty';
-  };
-
-  // ── Mobile Card ───────────────────────────────────────
+  // ── Mobile card ─────────────────────────────────────
 
   const renderMobileCard = ({ item: habit, index }) => {
     const tw      = count(thisChecks, thisBlocks, habit.id);
     const goalMet = tw >= habit.perweek;
+    const net     = habit.perweek - tw;
 
     return (
       <View style={[
@@ -384,6 +349,7 @@ export default function HabitTable() {
         habit.color && { borderLeftColor: habit.color },
         goalMet && { borderLeftColor: '#f9e2af' },
       ]}>
+        {/* Header: name + count */}
         <View style={s.mobileCardHeader}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(habit)}>
             <Text style={s.mobileHabitName} numberOfLines={2}>{habit.name}</Text>
@@ -393,18 +359,24 @@ export default function HabitTable() {
             <Text style={[s.mobileCount, goalMet && { color: '#f9e2af' }]}>
               {tw}<Text style={s.mobileCountGoal}>/{habit.perweek}</Text>
             </Text>
+            {!isCurrentWeek && (
+              <Text style={{
+                fontSize: 14, fontFamily: 'Raleway_600SemiBold',
+                color: net <= 0 ? '#a6e3a1' : theme.delete,
+              }}>
+                {net > 0 ? '+' : ''}{net}
+              </Text>
+            )}
           </View>
         </View>
-        
+
+        {/* Day dots */}
         <View style={s.mobileDayRow}>
-        {DAYS.map((_, i) => {
-          const state   = getDayState(habit.id, i);
-          const isToday = i === todayIndex;
-          return (
+          {DAYS.map((_, i) => (
             <MobileDayDot
               key={i}
-              state={state}
-              isToday={isToday}
+              state={getDayState(habit.id, i)}
+              isToday={i === todayIndex}
               isCurrentWeek={isCurrentWeek}
               onToggle={() => handleToggle(habit.id, i)}
               onBlock={() => handleBlock(habit.id, i)}
@@ -412,10 +384,10 @@ export default function HabitTable() {
               s={s}
               theme={theme}
             />
-          );
-        })}
+          ))}
         </View>
 
+        {/* Reorder arrows */}
         {isCurrentWeek && (
           <View style={s.mobileOrderRow}>
             <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
@@ -430,12 +402,13 @@ export default function HabitTable() {
     );
   };
 
-  // ── Desktop Row ───────────────────────────────────────
+  // ── Desktop row ─────────────────────────────────────
 
   const renderDesktopRow = ({ item: habit, index }) => {
     const tw      = count(thisChecks, thisBlocks, habit.id);
     const pw      = count(prevChecks, {}, habit.id);
     const goalMet = tw >= habit.perweek;
+    const net     = habit.perweek - tw;
 
     return (
       <View style={[
@@ -443,7 +416,8 @@ export default function HabitTable() {
         habit.color && { borderLeftColor: habit.color },
         goalMet && s.goalMet,
       ]}>
-        {isCurrentWeek && (
+        {/* Reorder arrows */}
+        {isCurrentWeek ? (
           <View style={s.orderBtns}>
             <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
               <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
@@ -452,45 +426,52 @@ export default function HabitTable() {
               <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
             </TouchableOpacity>
           </View>
-        )}
-        {!isCurrentWeek && <View style={s.orderBtns} />}
+        ) : <View style={s.orderBtns} />}
 
+        {/* Habit name (tap to edit) */}
         <TouchableOpacity style={s.habitCellBtn} onPress={() => openEdit(habit)}>
           <Text style={s.habitCell} numberOfLines={2}>{habit.name}</Text>
           {habit.notes ? <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text> : null}
         </TouchableOpacity>
 
-        {DAYS.map((_, i) => {
-          const state   = getDayState(habit.id, i);
-          const isToday = i === todayIndex;
-          return (
-            <DesktopDayCell
-              key={i}
-              habitId={habit.id}
-              dayIndex={i}
-              state={state}
-              isToday={isToday}
-              isCurrentWeek={isCurrentWeek}
-              onToggle={() => handleToggle(habit.id, i)}
-              onBlock={() => handleBlock(habit.id, i)}
-              s={s}
-            />
-          );
-        })}
+        {/* Day cells */}
+        {DAYS.map((_, i) => (
+          <DesktopDayCell
+            key={i}
+            habitId={habit.id}
+            dayIndex={i}
+            state={getDayState(habit.id, i)}
+            isToday={i === todayIndex}
+            isCurrentWeek={isCurrentWeek}
+            onToggle={() => handleToggle(habit.id, i)}
+            onBlock={() => handleBlock(habit.id, i)}
+            s={s}
+          />
+        ))}
 
+        {/* Stats */}
         <Text style={s.statCell}>{tw}</Text>
         <Text style={s.statCell}>{pw}</Text>
         <Text style={s.statCell}>{habit.perweek}</Text>
-
+        {!isCurrentWeek && (
+          <Text style={[s.statCell, {
+            color: net <= 0 ? '#a6e3a1' : theme.delete,
+            fontFamily: 'Raleway_600SemiBold',
+          }]}>
+            {net}
+          </Text>
+        )}
       </View>
     );
   };
+
+  // ── Loading state ───────────────────────────────────
 
   if (loading) return (
     <View style={s.center}><Text style={s.muted}>Loading...</Text></View>
   );
 
-  // ── Modal ─────────────────────────────────────────────
+  // ── Add/Edit modal ──────────────────────────────────
 
   const FormModal = (
     <Modal visible={modal.mode !== null} transparent animationType="fade" onRequestClose={closeModal}>
@@ -520,6 +501,7 @@ export default function HabitTable() {
 
             {form.error ? <Text style={s.errorText}>{form.error}</Text> : null}
 
+            {/* Actions: Save + Cancel left, Delete right */}
             <View style={[s.modalActions, { justifyContent: 'space-between' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
@@ -532,11 +514,7 @@ export default function HabitTable() {
               {modal.mode === 'edit' && (
                 <TouchableOpacity
                   onPress={() => { closeModal(); handleDelete(modal.habit.id); }}
-                  style={{
-                    width: 36, height: 36, borderRadius: 18,
-                    backgroundColor: theme.delete + '1a',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.delete + '1a', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Text style={{ color: theme.delete, fontSize: 16 }}>🗑</Text>
                 </TouchableOpacity>
@@ -548,7 +526,7 @@ export default function HabitTable() {
     </Modal>
   );
 
-  // ── Mobile Layout ─────────────────────────────────────
+  // ── Mobile layout ───────────────────────────────────
 
   if (isMobile) {
     return (
@@ -561,10 +539,12 @@ export default function HabitTable() {
           ListEmptyComponent={<View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>}
           ListFooterComponent={
             <>
-              <View style={s.mobileSumRow}>
-                <Text style={[s.muted, { fontFamily: 'Raleway_600SemiBold' }]}>This week: {totalThis} / {totalGoal}</Text>
-                <Text style={s.muted}>Prev week: {totalPrev}</Text>
-              </View>
+              {habits.length > 0 && (
+                <View style={s.mobileSumRow}>
+                  <Text style={[s.muted, { fontFamily: 'Raleway_600SemiBold' }]}>This week: {totalThis} / {totalGoal}</Text>
+                  <Text style={s.muted}>Prev week: {totalPrev}</Text>
+                </View>
+              )}
               {isCurrentWeek && habits.length < MAX_HABITS && (
                 <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}><Text style={s.addHabitText}>+ Add Habit</Text></TouchableOpacity>
               )}
@@ -577,12 +557,13 @@ export default function HabitTable() {
     );
   }
 
-  // ── Desktop Layout ────────────────────────────────────
+  // ── Desktop layout ──────────────────────────────────
 
   return (
     <View style={s.container}>
       {WeekNav}
-      
+
+      {/* Column headers (hidden when no habits) */}
       {habits.length > 0 && (
         <View style={s.headerRow}>
           <View style={s.orderBtns} />
@@ -595,6 +576,7 @@ export default function HabitTable() {
           <Text style={[s.header, s.statCellHeader]}>This Wk</Text>
           <Text style={[s.header, s.statCellHeader]}>Prev Wk</Text>
           <Text style={[s.header, s.statCellHeader]}>Goal</Text>
+          {!isCurrentWeek && <Text style={[s.header, s.statCellHeader]}>Net</Text>}
         </View>
       )}
 
@@ -602,11 +584,7 @@ export default function HabitTable() {
         data={habits}
         keyExtractor={item => String(item.id)}
         renderItem={renderDesktopRow}
-        ListEmptyComponent={
-          <View style={s.emptyState}>
-            <Text style={s.emptyText}>No habits yet.</Text>
-          </View>
-        }
+        ListEmptyComponent={<View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>}
         ListFooterComponent={
           <>
             {habits.length > 0 && (
@@ -617,12 +595,15 @@ export default function HabitTable() {
                 <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
                 <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
                 <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
+                {!isCurrentWeek && (
+                  <Text style={[s.statCell, s.bold, { color: totalThis >= totalGoal ? '#a6e3a1' : theme.delete }]}>
+                    {totalGoal - totalThis}
+                  </Text>
+                )}
               </View>
             )}
             {isCurrentWeek && habits.length < MAX_HABITS && (
-              <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
-                <Text style={s.addHabitText}>+ Add Habit</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}><Text style={s.addHabitText}>+ Add Habit</Text></TouchableOpacity>
             )}
           </>
         }
@@ -632,6 +613,8 @@ export default function HabitTable() {
   );
 }
 
+// ── Styles ─────────────────────────────────────────────
+
 function makeStyles(t) {
   return StyleSheet.create({
     container:           { flex: 1, paddingHorizontal: 32, paddingTop: 24, backgroundColor: t.bg },
@@ -640,7 +623,7 @@ function makeStyles(t) {
     emptyState:          { paddingVertical: 48, alignItems: 'center' },
     emptyText:           { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 15 },
 
-    // ── Week Nav ──
+    // Week nav
     weekNav:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
     weekArrow:           { paddingHorizontal: 16, paddingVertical: 8 },
     weekArrowText:       { fontSize: 20, color: t.accent, fontFamily: 'Raleway_700Bold' },
@@ -648,15 +631,15 @@ function makeStyles(t) {
     weekRange:           { color: t.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold', letterSpacing: 0.3 },
     weekTodayBtn:        { color: t.accent, fontSize: 12, fontFamily: 'Raleway_600SemiBold', marginTop: 4 },
 
-    // ── Desktop ──
+    // Desktop grid
     headerRow:           { flexDirection: 'row', alignItems: 'center', minHeight: 64, borderBottomWidth: 2, borderColor: t.accent, marginBottom: 2 },
     header:              { color: t.text, fontSize: 13, letterSpacing: 1.8, textTransform: 'uppercase', fontFamily: 'Raleway_700Bold' },
     habitHeader:         { width: 240, paddingHorizontal: 12 },
     dayCellHeader:       { width: 80, alignItems: 'center', justifyContent: 'center' },
     statCellHeader:      { width: 88, textAlign: 'center' },
     todayHeader:         { color: t.todayText },
-    row: { flexDirection: 'row', borderBottomWidth: 1, borderColor: t.border, alignItems: 'center', minHeight: 60, borderLeftWidth: 3, borderLeftColor: 'transparent' },
-    goalMet: { borderLeftColor: '#f9e2af' },
+    row:                 { flexDirection: 'row', borderBottomWidth: 1, borderColor: t.border, alignItems: 'center', minHeight: 60, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+    goalMet:             { borderLeftColor: '#f9e2af' },
     sumRow:              { backgroundColor: t.sumRow, borderTopWidth: 2, borderTopColor: t.border, marginTop: 2 },
     orderBtns:           { width: 40, alignItems: 'center', justifyContent: 'center', gap: 4 },
     orderBtn:            { fontSize: 11, color: t.orderBtn, paddingVertical: 2, fontFamily: 'Raleway_400Regular' },
@@ -665,26 +648,23 @@ function makeStyles(t) {
     habitCellText:       { width: 240, paddingHorizontal: 12, paddingVertical: 10, color: t.text, fontFamily: 'Raleway_400Regular' },
     habitCell:           { color: t.text, fontSize: 14, letterSpacing: 0.3, fontFamily: 'Raleway_400Regular', lineHeight: 20 },
     notePreview:         { color: t.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 2, fontStyle: 'italic' },
-    dayCell: { width: 80, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
+    dayCell:             { width: 80, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
     todayCell:           { backgroundColor: t.today, borderRadius: 6 },
     checkMark:           { fontSize: 20, color: t.checkMark, fontFamily: 'Raleway_700Bold' },
     blockMark:           { fontSize: 18, color: t.delete, fontFamily: 'Raleway_700Bold', opacity: 0.6 },
     statCell:            { width: 88, textAlign: 'center', color: t.text, fontSize: 14, fontFamily: 'Raleway_400Regular' },
     bold:                { fontFamily: 'Raleway_600SemiBold', color: t.text },
-    actionCell:          { width: 44, alignItems: 'center' },
-    deleteBtn:           { color: t.delete, fontSize: 15, fontFamily: 'Raleway_400Regular' },
     addHabitBtn:         { marginTop: 16, paddingVertical: 12, paddingHorizontal: 4 },
     addHabitText:        { color: t.accent, fontSize: 14, letterSpacing: 0.4, fontFamily: 'Raleway_600SemiBold' },
 
-    // ── Mobile ──
-    mobileCard: { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, padding: 16, borderWidth: 1, borderColor: t.border, borderLeftWidth: 4, borderLeftColor: 'transparent' },
+    // Mobile cards
+    mobileCard:          { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, padding: 16, borderWidth: 1, borderColor: t.border, borderLeftWidth: 4, borderLeftColor: 'transparent' },
     mobileCardHeader:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
     mobileHabitName:     { color: t.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold', lineHeight: 22, flex: 1 },
     mobileNotePreview:   { color: t.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 3, fontStyle: 'italic' },
     mobileCardRight:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 8 },
     mobileCount:         { fontSize: 18, fontFamily: 'Raleway_700Bold', color: t.accent },
     mobileCountGoal:     { fontSize: 13, fontFamily: 'Raleway_400Regular', color: t.textSub },
-    mobileDeleteBtn:     { padding: 4 },
     mobileDayRow:        { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
     mobileDayDot:        { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: t.border, backgroundColor: t.bg },
     mobileDayDotToday:   { borderColor: t.accent, backgroundColor: t.today },
@@ -697,7 +677,7 @@ function makeStyles(t) {
     mobileOrderRow:      { flexDirection: 'row', gap: 16 },
     mobileSumRow:        { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderTopWidth: 1, borderColor: t.border, marginTop: 8 },
 
-    // ── Modal ──
+    // Modal
     modalOverlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },
     modalBox:            { width: 420, borderRadius: 16, padding: 28, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border },
     modalTitle:          { fontSize: 20, fontFamily: 'Raleway_700Bold', color: t.text, marginBottom: 20, letterSpacing: 0.4 },

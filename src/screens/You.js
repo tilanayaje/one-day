@@ -69,8 +69,16 @@ function buildHeatmap(allCompletions, weekCount = 53) {
       cur.setDate(cur.getDate() + 1);
     }
     const month = new Date(week[0].iso).getMonth();
+    const year = new Date(week[0].iso).getFullYear();
     if (month !== lastMonth) {
-      monthLabels.push({ weekIndex: weeks.length, label: MONTHS[month] });
+      const lastLabelIndex = monthLabels.length > 0 ? monthLabels[monthLabels.length - 1].weekIndex : -4;
+      if (month === 0 || weeks.length - lastLabelIndex >= 3) {
+        monthLabels.push({
+          weekIndex: weeks.length,
+          label: MONTHS[month],
+          year: month === 0 ? year : null,
+        });
+      }
       lastMonth = month;
     }
     weeks.push(week);
@@ -129,23 +137,20 @@ function Heatmap({ weeks, monthLabels, maxCount, cellSize, gap, theme, isDark })
     <View style={{ position: 'relative' }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View>
-          <View style={{ height: 18, position: 'relative', marginBottom: 4 }}>
-            {monthLabels.map(({ weekIndex, label }) => (
-              <Text
-                key={label + weekIndex}
-                style={{
-                  position: 'absolute',
-                  left: weekIndex * (cellSize + gap) + 18,
-                  fontSize: 10,
-                  fontFamily: 'Raleway_400Regular',
-                  color: theme.textSub,
-                }}
-              >
-                {label}
+        <View style={{ height: 28, position: 'relative', marginBottom: 4 }}>
+          {monthLabels.map(({ weekIndex, label, year }) => (
+            <View key={label + weekIndex} style={{ position: 'absolute', left: weekIndex * (cellSize + gap) + 22, top: 0, height: 28, justifyContent: 'flex-end' }}>
+            {year && (
+              <Text style={{ fontSize: 11, fontFamily: 'Raleway_700Bold', color: '#f38ba8', letterSpacing: 0.5 }}>
+                {year}
               </Text>
+            )}
+            <Text style={{ fontSize: 10, fontFamily: 'Raleway_400Regular', color: theme.textSub }}>
+              {label}
+            </Text>
+          </View>
             ))}
           </View>
-
           <View style={{ flexDirection: 'row', gap }}>
             <View style={{ gap, marginRight: 4, justifyContent: 'space-around' }}>
               {DAYS_SHORT.map((d, i) => (
