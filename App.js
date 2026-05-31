@@ -14,8 +14,6 @@ import {
 
 import HabitTable  from './src/screens/HabitTable';
 import Analytics   from './src/screens/Analytics';
-import Journal     from './src/screens/Journal';
-import Gratitude   from './src/screens/Gratitude';
 import Philosophy  from './src/screens/Philosophy';
 import Login       from './src/screens/Login';
 import You         from './src/screens/You';
@@ -105,8 +103,6 @@ function AppNavigator() {
       >
         <Tab.Screen name="Habits"     component={HabitTable} />
         <Tab.Screen name="Analytics"  component={Analytics} />
-        <Tab.Screen name="Journal"    component={Journal} />
-        <Tab.Screen name="Gratitude"  component={Gratitude} />
         <Tab.Screen name="Philosophy" component={Philosophy} />
         <Tab.Screen name="You" component={You} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, }}/>
       </Tab.Navigator>

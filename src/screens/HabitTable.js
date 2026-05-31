@@ -393,11 +393,6 @@ export default function HabitTable() {
             <Text style={[s.mobileCount, goalMet && { color: '#f9e2af' }]}>
               {tw}<Text style={s.mobileCountGoal}>/{habit.perweek}</Text>
             </Text>
-            {isCurrentWeek && (
-              <TouchableOpacity onPress={() => handleDelete(habit.id)} style={s.mobileDeleteBtn}>
-                <Text style={s.deleteBtn}>✕</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
         
@@ -487,11 +482,6 @@ export default function HabitTable() {
         <Text style={s.statCell}>{pw}</Text>
         <Text style={s.statCell}>{habit.perweek}</Text>
 
-        {isCurrentWeek ? (
-          <TouchableOpacity style={s.actionCell} onPress={() => handleDelete(habit.id)}>
-            <Text style={s.deleteBtn}>✕</Text>
-          </TouchableOpacity>
-        ) : <View style={s.actionCell} />}
       </View>
     );
   };
@@ -530,9 +520,27 @@ export default function HabitTable() {
 
             {form.error ? <Text style={s.errorText}>{form.error}</Text> : null}
 
-            <View style={s.modalActions}>
-              <TouchableOpacity style={s.saveBtn} onPress={handleSave}><Text style={s.saveBtnText}>{modalModeRef.current === 'add' ? 'Add' : 'Save'}</Text></TouchableOpacity>
-              <TouchableOpacity onPress={closeModal} style={s.cancelBtn}><Text style={s.cancelText}>Cancel</Text></TouchableOpacity>
+            <View style={[s.modalActions, { justifyContent: 'space-between' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
+                  <Text style={s.saveBtnText}>{modalModeRef.current === 'add' ? 'Add' : 'Save'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={closeModal} style={s.cancelBtn}>
+                  <Text style={s.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              {modal.mode === 'edit' && (
+                <TouchableOpacity
+                  onPress={() => { closeModal(); handleDelete(modal.habit.id); }}
+                  style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: theme.delete + '1a',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: theme.delete, fontSize: 16 }}>🗑</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -587,7 +595,6 @@ export default function HabitTable() {
           <Text style={[s.header, s.statCellHeader]}>This Wk</Text>
           <Text style={[s.header, s.statCellHeader]}>Prev Wk</Text>
           <Text style={[s.header, s.statCellHeader]}>Goal</Text>
-          <View style={s.actionCell} />
         </View>
       )}
 
@@ -604,7 +611,12 @@ export default function HabitTable() {
           <>
             {habits.length > 0 && (
               <View style={[s.row, s.sumRow]}>
-                {/* ...sum row content... */}
+                <View style={s.orderBtns} />
+                <Text style={[s.habitCellText, s.bold]}>Sum</Text>
+                {DAYS.map((_, i) => <View key={i} style={s.dayCell} />)}
+                <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
+                <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
+                <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
               </View>
             )}
             {isCurrentWeek && habits.length < MAX_HABITS && (
