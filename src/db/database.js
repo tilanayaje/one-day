@@ -91,12 +91,16 @@ export async function getAllCompletions() {
   const { data, error } = await supabase.from('completions').select('*');
   if (error) throw error;
   const result = {};
+  const blocked = {};
   for (const row of data) {
     if (!result[row.week_key]) result[row.week_key] = {};
+    if (!blocked[row.week_key]) blocked[row.week_key] = {};
     if (!result[row.week_key][row.habit_id]) result[row.week_key][row.habit_id] = Array(7).fill(false);
+    if (!blocked[row.week_key][row.habit_id]) blocked[row.week_key][row.habit_id] = Array(7).fill(false);
     result[row.week_key][row.habit_id][row.day] = row.checked && !(row.blocked ?? false);
+    blocked[row.week_key][row.habit_id][row.day] = row.blocked ?? false;
   }
-  return result;
+  return { checks: result, blocked };
 }
 
 export async function toggleCompletion(habitId, weekKey, day, checked) {
