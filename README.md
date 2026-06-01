@@ -2,7 +2,7 @@
 
 _'Fix your day, not your life'_
 
-A personal habit tracking app built from scratch. Provides daily structure and accountability to keep you on track. Inspired by the book *The Compound Effect* by Darren Hardy. Cloud-synced across devices with Google sign-in.
+A habit tracking app that gives you structure, accountability, and data. Built from scratch with React Native. Cloud-synced across devices. Inspired by *The Compound Effect* by Darren Hardy.
 
 ---
 
@@ -16,22 +16,26 @@ A personal habit tracking app built from scratch. Provides daily structure and a
 
 ### Features
 
-- **Weekly habit grid** — daily check-offs with per-habit goals, color grouping, notes, and reordering
-- **Block system** — right-click (desktop) or long-press (mobile) to mark a day as intentionally skipped, excluded from all stats
-- **Weekly navigation** — browse past weeks in read-only mode with date range display
-- **Analytics** — per-habit streaks, hit rates, best weeks, and custom bar charts
-- **Compound Map** — 365-day heatmap visualizing daily consistency over time
-- **Profile page** — lifetime stats, current streak, best streak
-- **Responsive** — full desktop grid layout and mobile card layout from one codebase
-- **Dark mode** — Catppuccin-inspired midnight theme
-- **Google sign-in** — persistent cloud sync via Supabase
+- **Weekly habit grid** —checks per-task/habit, color grouping, notes, and reordering
+- **Check / Skip / Miss system** — right-click (desktop) or long-press (mobile) to intentionally skip a day, excluded from all stats
+- **Weekly navigation** — browse past weeks
+- **Analytics** — per-habit consistency rates, streak tracking, bar charts, browse by week
+- **Compound Map** — 365-day heatmap 
+- **Profile & Insights** — lifetime stats, perfect streak, consistency score, best/worst day with rates, active days tracking
+- **Guest mode** — try the app instantly with pre-loaded demo data, no sign-in required
+- **Data management** — offers exporting/importing JSON backups, reset all data
+- **Responsive** — Distinct desktop grid layout and mobile card layout from one codebase
+- **Dark mode** — Dark and Light modes offered
+- **Google sign-in** — persistent cloud sync via Supabase with RLS
 
 ### Tech Stack
 
-React Native · Expo SDK 56 · Supabase (Postgres + Auth) · React Navigation v7 · Electron · Vercel
+React Native · Expo SDK 56 · Supabase (Postgres + Auth) · React Navigation v7 · Vercel
 
 ---
 
-### Use it
+### Try it
 
 **Web:** [one-day-kappa.vercel.app](https://one-day-kappa.vercel.app)
+
+No account needed — click "Try without an account" to explore with demo data.

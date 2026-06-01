@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { signInWithGoogle, signInAnonymously } from '../db/database';
+import { signInWithGoogle, signInAnonymously, seedDemoData } from '../db/database';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -35,7 +35,7 @@ export default function Login() {
         </View>
 
         <Text style={[s.footnote, { color: theme.textSub }]}>
-          Guest data is temporary. Sign in to save your progress.
+          Guest mode is a demo with sample data. Sign in to start your own.
         </Text>
       </View>
     </View>

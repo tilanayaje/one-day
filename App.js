@@ -4,7 +4,7 @@ import { NavigationContainer, useNavigationContainerRef } from '@react-navigatio
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { supabase } from './src/db/supabase';
-import { signInWithGoogle } from './src/db/database';
+import { signInWithGoogle, seedDemoData } from './src/db/database';
 
 
 import {
@@ -40,9 +40,16 @@ function AppNavigator() {
         setLoading(false);
       });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setLoading(false);
+
+      if (session?.user?.is_anonymous) {
+        const { data: habits } = await supabase.from('habits').select('id').limit(1);
+        if (!habits || habits.length === 0) {
+          await seedDemoData();
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -72,7 +79,7 @@ function AppNavigator() {
           width: '100%',
         }}>
           <Text style={{ color: '#000000', fontSize: 12, fontFamily: 'Raleway_400Regular', marginRight: 10 }}>
-            Guest mode — data won't be saved
+            Guest mode — sign in to create your own account
           </Text>
           <TouchableOpacity onPress={signInWithGoogle}>
             <Text style={{ color: '#000000', fontSize: 12, fontFamily: 'Raleway_700Bold', textDecorationLine: 'underline' }}>

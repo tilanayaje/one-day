@@ -128,3 +128,88 @@ export async function signInAnonymously() {
   const { error } = await supabase.auth.signInAnonymously();
   if (error) throw error;
 }
+
+export async function seedDemoData() {
+  const demoHabits = [
+    { name: 'Go to gym', perweek: 5, color: '#FF6B6B', notes: 'Upper/lower split — rest days are intentional', ord: 0 },
+    { name: 'Code for 1 hour', perweek: 6, color: null, notes: 'Projects or LeetCode', ord: 1 },
+    { name: 'Morning walk', perweek: 7, color: null, ord: 2 },
+    { name: 'Nighttime routine', perweek: 7, color: '#48DBFB', notes: 'Skincare, stretch, read before bed', ord: 3 },
+    { name: 'Read 30 pages', perweek: 5, color: null, ord: 4 },
+    { name: 'No phone first hour', perweek: 7, color: null, notes: 'Leave it charging in another room', ord: 5 },
+  ];
+
+  const { data: inserted, error } = await supabase
+    .from('habits')
+    .insert(demoHabits)
+    .select();
+  if (error || !inserted) return;
+
+  const completions = [];
+  const now = new Date();
+  now.setDate(now.getDate() - now.getDay());
+
+  // Patterns per habit: [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
+  // 'c' = check, 'b' = block/skip, null = miss
+  const patterns = {
+    'Go to gym': [
+      ['b', 'c', 'c', 'c', 'c', 'c', 'b'],   // week -2
+      ['b', 'c', 'c', null, 'c', 'c', 'b'],   // week -1
+      ['b', 'c', 'c', 'c', 'c', null, 'b'],   // week 0
+    ],
+    'Code for 1 hour': [
+      [null, 'c', 'c', 'c', 'c', 'c', null],
+      ['c', 'c', null, 'c', 'c', 'c', null],
+      [null, 'c', 'c', 'c', 'c', 'c', 'c'],
+    ],
+    'Morning walk': [
+      ['c', 'c', 'c', null, 'c', 'c', 'c'],
+      ['c', 'c', 'c', 'c', null, 'c', 'c'],
+      ['c', null, 'c', 'c', 'c', 'c', 'c'],
+    ],
+    'Nighttime routine': [
+      ['c', 'c', 'c', 'c', 'c', null, 'c'],
+      ['c', 'c', 'c', 'c', 'c', 'c', null],
+      ['c', 'c', 'c', 'c', 'c', 'c', 'c'],
+    ],
+    'Read 30 pages': [
+      [null, 'c', null, 'c', 'c', null, 'c'],
+      ['c', null, 'c', 'c', null, 'c', null],
+      [null, 'c', 'c', null, 'c', 'c', null],
+    ],
+    'No phone first hour': [
+      ['c', 'c', null, 'c', null, 'c', null],
+      [null, 'c', 'c', null, 'c', null, 'c'],
+      ['c', null, 'c', 'c', null, 'c', 'c'],
+    ],
+  };
+
+  for (let w = 0; w < 3; w++) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() + (w - 2) * 7);
+    const wk = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+
+    for (const habit of inserted) {
+      const weekPattern = patterns[habit.name]?.[w];
+      if (!weekPattern) continue;
+
+      for (let d = 0; d < 7; d++) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(dayDate.getDate() + d);
+        if (dayDate > new Date()) continue;
+
+        const state = weekPattern[d];
+        if (state === 'c') {
+          completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: true, blocked: false });
+        } else if (state === 'b') {
+          completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: false, blocked: true });
+        }
+        // null = miss, no row inserted
+      }
+    }
+  }
+
+  if (completions.length > 0) {
+    await supabase.from('completions').insert(completions);
+  }
+}
