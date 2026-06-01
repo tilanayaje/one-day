@@ -121,3 +121,10 @@ export async function toggleBlock(habitId, weekKey, day, blocked) {
              { onConflict: 'habit_id,week_key,day' });
   if (error) throw error;
 }
+
+// for guest users (no sign up / sign in)
+
+export async function signInAnonymously() {
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+}
