@@ -9,7 +9,7 @@ import { getAllCompletions } from '../db/database';
 import { supabase } from '../db/supabase';
 
 const MOBILE_BREAKPOINT = 768;
-const DAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_NAMES  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -18,15 +18,15 @@ const MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct',
 function goldColor(intensity, theme, isDark) {
   if (intensity === 0) return theme.border;
   if (isDark) {
-    if (intensity <= 0.25) return '#2a2210';
-    if (intensity <= 0.50) return '#4d3d18';
-    if (intensity <= 0.75) return '#8a6d25';
-    return '#d4a83a';
+    if (intensity <= 0.25) return '#1e1b0d';
+    if (intensity <= 0.50) return '#3a3215';
+    if (intensity <= 0.75) return '#5e4e20';
+    return '#8a7530';
   } else {
-    if (intensity <= 0.25) return '#f0e6c8';
-    if (intensity <= 0.50) return '#dcc078';
-    if (intensity <= 0.75) return '#c49a30';
-    return '#9a7a18';
+    if (intensity <= 0.25) return '#efe5c8';
+    if (intensity <= 0.50) return '#d4c078';
+    if (intensity <= 0.75) return '#b09830';
+    return '#8a7820';
   }
 }
 
@@ -105,7 +105,6 @@ function computeStats(allCompletions, allBlocked = {}) {
 
   let totalChecks = 0;
   let totalOpportunities = 0;   // habit-day combinations (for consistency score)
-  let perfectDays = 0;
   let totalDays = 0;
 
   for (const [weekKey, habits] of Object.entries(allCompletions)) {
@@ -133,20 +132,11 @@ function computeStats(allCompletions, allBlocked = {}) {
           checksThisDay++;
           dayOfWeekCounts[d]++;
         }
-        const activeHabits = habitIds.filter(id => !(allBlocked[weekKey]?.[id]?.[d] ?? false)).length;
-          if (activeHabits > 0 && checksThisDay === activeHabits) {
-            perfectDays++;
-          }
       }
 
       if (checksThisDay > 0) {
         checksByDate[iso] = checksThisDay;
         totalChecks += checksThisDay;
-      }
-
-      // Perfect day = every habit checked
-      if (habitCount > 0 && checksThisDay === habitCount) {
-        perfectDays++;
       }
     }
   }
@@ -210,6 +200,38 @@ function computeStats(allCompletions, allBlocked = {}) {
       check.setDate(check.getDate() - 1);
     } else break;
   }
+  // Perfect day streak — at the bottom of computeStats, after the other streak calculations
+  let perfectStreak = 0;
+  const perfCheck = new Date(today);
+
+  if (!checksByDate[perfCheck.toISOString().split('T')[0]]) {
+    perfCheck.setDate(perfCheck.getDate() - 1);
+  }
+
+  while (true) {
+    const iso = perfCheck.toISOString().split('T')[0];
+    const weekStart = new Date(perfCheck);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const wk = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+    const dayIndex = perfCheck.getDay();
+
+    const weekHabits = allCompletions[wk];
+    if (!weekHabits) break;
+
+    const habitIds = Object.keys(weekHabits);
+    if (habitIds.length === 0) break;
+
+    const activeHabits = habitIds.filter(id => !(allBlocked[wk]?.[id]?.[dayIndex] ?? false)).length;
+    const checksThatDay = habitIds.filter(id => weekHabits[id][dayIndex]).length;
+    const blockedCount = habitIds.length - activeHabits;
+
+    if (activeHabits > 0 && checksThatDay === activeHabits && blockedCount < checksThatDay) {
+      perfectStreak++;
+      perfCheck.setDate(perfCheck.getDate() - 1);
+    } else {
+      break;
+    }
+  }
 
   return {
     totalChecks,
@@ -220,7 +242,7 @@ function computeStats(allCompletions, allBlocked = {}) {
     bestStreak,
     bestStreakStart,
     bestStreakEnd,
-    perfectDays,
+    perfectStreak,
     activeDays,
     consistency,
     bestDay:      totalChecks > 0 ? DAY_NAMES[bestDayIndex] : null,
@@ -546,10 +568,10 @@ export default function You() {
             theme={theme} isMobile={isMobile}
           />
           <InsightCard
-            label="Perfect Days"
-            sub="Every habit checked"
-            value={stats.perfectDays}
-            accent={stats.perfectDays > 0 ? '#f9e2af' : undefined}
+            label="Perfect Streak"
+            sub="All habits checked, minimal skips"
+            value={`${stats.perfectStreak}d`}
+            accent={stats.perfectStreak > 0 ? '#f9e2af' : undefined}
             theme={theme} isMobile={isMobile}
           />
         </View>

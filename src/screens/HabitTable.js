@@ -150,6 +150,8 @@ export default function HabitTable() {
   const [modal, setModal]       = useState({ mode: null, habit: null });
   const [form, setForm]         = useState(EMPTY_FORM);
   const [weekOffset, setWeekOffset] = useState(0);
+  const weekOffsetRef = React.useRef(weekOffset);
+  weekOffsetRef.current = weekOffset;
 
   // Ref prevents modal title from flickering to "Edit" on close
   const modalModeRef = React.useRef('add');
@@ -180,7 +182,7 @@ export default function HabitTable() {
   // Load on first focus
   const firstLoad = React.useRef(true);
   useFocusEffect(useCallback(() => {
-    loadData(weekOffset, firstLoad.current);
+    loadData(weekOffsetRef.current, firstLoad.current);
     firstLoad.current = false;
   }, []));
 
