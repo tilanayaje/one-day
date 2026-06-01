@@ -6,11 +6,23 @@ A habit tracking app that gives you structure, accountability, and data. Built f
 
 ---
 
-![Desktop view](https://github.com/user-attachments/assets/9e3e8f32-dece-4a8c-9a7e-2f990932eac5)
-<p align="center"><em>Desktop view</em></p>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/eaa19bc9-b12f-4378-8a3e-62f2bdb8febd" alt="Desktop view"  >
+  <br>
+  <em>Desktop view</em>
+</p>
 
-![Mobile view](https://github.com/user-attachments/assets/c7e5e4c9-ca95-4a0d-88e0-fe320f03fb7c)
-<p align="center"><em>Mobile view</em></p>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f527074d-10ea-4bbd-9d84-f9189e632142" alt="Mobile view" width="600" >
+  <br>
+  <em>Mobile view</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/40aaabfc-5865-43d2-8420-fa9048329872" alt="Analytics view" width="700" >
+  <br>
+  <em>Analytics view (Early development)</em>
+</p>
 
 ---
 
@@ -37,5 +49,4 @@ React Native · Expo SDK 56 · Supabase (Postgres + Auth) · React Navigation v7
 ### Try it
 
 **Web:** [one-day-kappa.vercel.app](https://one-day-kappa.vercel.app)
-
-No account needed — click "Try without an account" to explore with demo data.
+Sign in as a guest to see 3 weeks of progression
