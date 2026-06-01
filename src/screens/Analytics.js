@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { getHabits, getAllCompletions } from '../db/database';
 
@@ -70,7 +70,7 @@ function computeStats(habit, allCompletions, allBlocked = {}) {
       bestWeekKey = wk;
     }
     if (weekCount >= habit.perweek) goalsHit++;
-    if (weekCount > 0) chartData.push({ week: wk.slice(5), count: weekCount });
+    if (weekCount > 0) chartData.push({ week: wk.slice(5), count: weekCount, fullWeekKey: wk });
   }
 
   // Consistency
@@ -149,7 +149,7 @@ function computeStats(habit, allCompletions, allBlocked = {}) {
 
 // ── Bar chart (unchanged) ────────────────────────────────
 
-function BarChart({ data, goal, theme, isMobile }) {
+function BarChart({ data, goal, theme, isMobile, onWeekPress }) {
   if (!data || data.length === 0) return null;
   const maxVal = Math.max(goal, ...data.map(d => d.count));
   const chartHeight = isMobile ? 100 : 140;
@@ -184,9 +184,11 @@ function BarChart({ data, goal, theme, isMobile }) {
                     borderRadius: 3, opacity: 0.85,
                   }} />
                 </View>
-                <Text style={{ color: theme.textSub, fontSize: isMobile ? 8 : 9, marginTop: 4, fontFamily: 'Raleway_400Regular', textAlign: 'center' }}>
-                  {d.week}
-                </Text>
+                <TouchableOpacity onPress={() => onWeekPress?.(d.fullWeekKey)}>
+                  <Text style={{ color: theme.accent, fontSize: isMobile ? 8 : 9, marginTop: 4, fontFamily: 'Raleway_400Regular', textAlign: 'center' }}>
+                    {d.week}
+                  </Text>
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -324,6 +326,16 @@ export default function Analytics() {
   const { width } = useWindowDimensions();
   const isMobile = width < MOBILE_BREAKPOINT;
   const s = makeStyles(theme, isMobile);
+  const navigation = useNavigation();
+
+  const navigateToWeek = (weekKey) => {
+    const target = new Date(weekKey + 'T00:00:00');
+    const now = new Date();
+    now.setDate(now.getDate() - now.getDay());
+    now.setHours(0, 0, 0, 0);
+    const diff = Math.round((target - now) / (7 * 86400000));
+    navigation.navigate('Habits', { weekOffset: diff });
+  };
 
   const [habits, setHabits] = useState([]);
   const [allCompletions, setAllCompletions] = useState({});
@@ -464,7 +476,7 @@ export default function Analytics() {
                     </View>
 
                     {/* Bar chart */}
-                    <BarChart data={stats.chartData} goal={habit.perweek} theme={theme} isMobile={isMobile} />
+                    <BarChart data={stats.chartData} goal={habit.perweek} theme={theme} isMobile={isMobile} onWeekPress={navigateToWeek} />
                   </>
                 )}
               </View>

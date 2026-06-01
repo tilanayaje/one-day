@@ -14,9 +14,9 @@ import {
 
 import HabitTable  from './src/screens/HabitTable';
 import Analytics   from './src/screens/Analytics';
-import Philosophy  from './src/screens/Philosophy';
 import Login       from './src/screens/Login';
 import You         from './src/screens/You';
+import AboutApp from './src/screens/AboutApp';
 
 const Tab = createBottomTabNavigator();
 
@@ -101,10 +101,18 @@ function AppNavigator() {
           ),
         }}
       >
-        <Tab.Screen name="Habits"     component={HabitTable} />
+        <Tab.Screen name="Habits" component={HabitTable} options={{ title: 'Compound Table' }} />
         <Tab.Screen name="Analytics"  component={Analytics} />
-        <Tab.Screen name="Philosophy" component={Philosophy} />
         <Tab.Screen name="You" component={You} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, }}/>
+        <Tab.Screen
+          name="AboutApp"
+          component={AboutApp}
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: 'none' },
+            title: 'About',
+          }}
+        />
       </Tab.Navigator>
 
       {/* Settings Modal */}
@@ -193,6 +201,19 @@ function AppNavigator() {
                 Dark Mode
               </Text>
               <Text style={{ fontSize: 18 }}>{isDark ? '☀️' : '🌙'}</Text>
+            </TouchableOpacity>
+
+            {/* About */}
+            <TouchableOpacity
+              onPress={() => {
+                setShowSettings(false);
+                setTimeout(() => navigationRef.navigate('AboutApp'), 150);
+              }}
+              style={{
+                padding: 18, borderBottomWidth: 1, borderColor: theme.border,
+              }}
+            >
+              <Text style={{ color: theme.text, fontFamily: 'Raleway_600SemiBold', fontSize: 14 }}>About App</Text>
             </TouchableOpacity>
 
             {/* Sign Out */}

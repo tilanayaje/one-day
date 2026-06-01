@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, TextInput, Animated,
   StyleSheet, FlatList, Modal, ScrollView, useWindowDimensions,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import {
   getHabits, addHabit, deleteHabit, updateHabit,
@@ -137,6 +137,13 @@ export default function HabitTable() {
   const { width } = useWindowDimensions();
   const isMobile = width < MOBILE_BP;
   const s = makeStyles(theme);
+  const route = useRoute();
+
+  useEffect(() => {
+  if (route.params?.weekOffset !== undefined) {
+    setWeekOffset(route.params.weekOffset);
+  }
+}, [route.params?.weekOffset]);
 
   // All week data in one object — updated atomically to prevent flicker
   const [data, setData] = useState({
@@ -197,6 +204,14 @@ export default function HabitTable() {
   useEffect(() => {
     if (!firstLoad.current) loadData(weekOffset);
   }, [weekOffset]);
+
+  // Navigate from Analytics
+  useEffect(() => {
+    if (route.params?.weekOffset !== undefined) {
+      setWeekOffset(route.params.weekOffset);
+    }
+  }, [route.params?.weekOffset]);
+
 
   // ── Check & block handlers ──────────────────────────
 
@@ -540,6 +555,53 @@ export default function HabitTable() {
     </Modal>
   );
 
+  // ── Help Modal for Mobile ───────────────────────────────────
+
+  const HelpModal = (
+    <Modal visible={showHelp} transparent animationType="fade" onRequestClose={() => setShowHelp(false)}>
+      <View style={s.modalOverlay}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <View style={[s.modalBox, isMobile && { width: '100%', maxWidth: 420 }]}>
+            <Text style={s.modalTitle}>How It Works</Text>
+            <View style={{ gap: 18, marginTop: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: '#f9e2af', width: 30, textAlign: 'center' }}>✓</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Check</Text>
+                  <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>You completed the habit that day</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: theme.delete, opacity: 0.6, width: 30, textAlign: 'center' }}>✕</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Skip</Text>
+                  <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>Intentional rest day, travel, etc. Excluded from your stats</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1.5, borderColor: theme.border, marginHorizontal: 3 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Miss</Text>
+                  <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>You didn't do it. Included in your stats</Text>
+                </View>
+              </View>
+              <View style={{ height: 1, backgroundColor: theme.border }} />
+              <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', lineHeight: 20 }}>
+                Right-click (desktop) or long-press (mobile) to skip a day. Hit your weekly goal and the row highlights gold.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowHelp(false)}
+              style={{ backgroundColor: theme.accent, borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 24 }}
+            >
+              <Text style={{ color: theme.accentText, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   // ── Mobile layout ───────────────────────────────────
 
   if (isMobile) {
@@ -577,6 +639,7 @@ export default function HabitTable() {
           </View>
         )}
         {FormModal}
+        {HelpModal}
       </View>
     );
   }
@@ -633,54 +696,7 @@ export default function HabitTable() {
         }
       />
       {FormModal}
-      <Modal visible={showHelp} transparent animationType="fade" onRequestClose={() => setShowHelp(false)}>
-        <View style={s.modalOverlay}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <View style={[s.modalBox, isMobile && { width: '100%', maxWidth: 420 }]}>
-              <Text style={s.modalTitle}>How It Works</Text>
-
-              <View style={{ gap: 18, marginTop: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: '#f9e2af', width: 30, textAlign: 'center' }}>✓</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Check</Text>
-                    <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>You completed the habit that day</Text>
-                  </View>
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: theme.delete, opacity: 0.6, width: 30, textAlign: 'center' }}>✕</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Skip</Text>
-                    <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>Intentional rest day, travel, etc. Excluded from your stats</Text>
-                  </View>
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <View style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1.5, borderColor: theme.border, marginHorizontal: 3 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Miss</Text>
-                    <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>You didn't do it. Included in your stats</Text>
-                  </View>
-                </View>
-
-                <View style={{ height: 1, backgroundColor: theme.border }} />
-
-                <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', lineHeight: 20 }}>
-                  Right-click (desktop) or long-press (mobile) to skip a day. Hit your weekly goal and the row highlights gold.
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => setShowHelp(false)}
-                style={{ backgroundColor: theme.accent, borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 24 }}
-              >
-                <Text style={{ color: theme.accentText, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>Got it</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {HelpModal}
           </View>
   );
 }
