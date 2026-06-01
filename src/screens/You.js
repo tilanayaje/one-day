@@ -606,23 +606,104 @@ export default function You() {
           />
         </View>
       </View>
-        <TouchableOpacity
-          onPress={async () => {
-            if (!window.confirm('Delete ALL habits and check-in data? This cannot be undone.')) return;
-            if (!window.confirm('Are you absolutely sure? Everything will be permanently deleted.')) return;
-            const { error: e1 } = await supabase.from('completions').delete().neq('id', 0);
-            const { error: e2 } = await supabase.from('habits').delete().neq('id', 0);
-            window.location.reload();
-          }}
-          style={{
-            backgroundColor: theme.delete + '1a', borderRadius: 12,
-            padding: 16, alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: theme.delete, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>
-            Reset All Data
-          </Text>
-        </TouchableOpacity>
+      {/* export json data / backyp */}
+      <TouchableOpacity
+        onPress={async () => {
+          const { data: habits } = await supabase.from('habits').select('*').order('ord');
+          const { data: completions } = await supabase.from('completions').select('*');
+          const exportData = { habits, completions, exportedAt: new Date().toISOString() };
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `one-day-backup-${new Date().toISOString().split('T')[0]}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }}
+        style={{
+          backgroundColor: theme.accent + '1a', borderRadius: 12,
+          padding: 16, alignItems: 'center', marginBottom: 10,
+        }}
+      >
+        <Text style={{ color: theme.accent, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>
+          Export Data
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => {
+          if (!window.confirm('Import will replace ALL current data. Continue?')) return;
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          input.onchange = async (e) => {
+            try {
+              const file = e.target.files[0];
+              const text = await file.text();
+              const imported = JSON.parse(text);
+              if (!imported.habits || !imported.completions) {
+                window.alert('Invalid backup file.');
+                return;
+              }
+              // Clear existing data
+              await supabase.from('completions').delete().neq('id', 0);
+              await supabase.from('habits').delete().neq('id', 0);
+              // Import habits (strip IDs, let Supabase assign new ones)
+              const habitMap = {};
+              for (const h of imported.habits) {
+                const { data, error } = await supabase.from('habits')
+                  .insert({ name: h.name, perweek: h.perweek, color: h.color, notes: h.notes, ord: h.ord })
+                  .select().single();
+                if (!error) habitMap[h.id] = data.id;
+              }
+              // Import completions with mapped habit IDs
+              const completions = imported.completions
+                .filter(c => habitMap[c.habit_id])
+                .map(c => ({
+                  habit_id: habitMap[c.habit_id],
+                  week_key: c.week_key,
+                  day: c.day,
+                  checked: c.checked,
+                  blocked: c.blocked ?? false,
+                }));
+              if (completions.length > 0) {
+                await supabase.from('completions').insert(completions);
+              }
+              window.alert(`Imported ${Object.keys(habitMap).length} habits and ${completions.length} completions.`);
+              window.location.reload();
+            } catch (err) {
+              window.alert('Import failed: ' + err.message);
+            }
+          };
+          input.click();
+        }}
+        style={{
+          backgroundColor: theme.surface, borderRadius: 12,
+          padding: 16, alignItems: 'center', marginBottom: 10,
+          borderWidth: 1, borderColor: theme.border,
+        }}
+      >
+        <Text style={{ color: theme.text, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>
+          Import Data
+        </Text>
+      </TouchableOpacity>
+      {/* reset button */}
+      <TouchableOpacity
+        onPress={async () => {
+          if (!window.confirm('Delete ALL habits and check-in data? This cannot be undone.')) return;
+          if (!window.confirm('Are you absolutely sure? Everything will be permanently deleted.')) return;
+          const { error: e1 } = await supabase.from('completions').delete().neq('id', 0);
+          const { error: e2 } = await supabase.from('habits').delete().neq('id', 0);
+          window.location.reload();
+        }}
+        style={{
+          backgroundColor: theme.delete + '1a', borderRadius: 12,
+          padding: 16, alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: theme.delete, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>
+          Reset All Data
+        </Text>
+      </TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
   );
