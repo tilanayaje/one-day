@@ -147,11 +147,18 @@ export default function HabitTable() {
   const todayIndex    = data.todayIndex;
   const isCurrentWeek = data.isCurrentWeek;
 
-  const [modal, setModal]       = useState({ mode: null, habit: null });
-  const [form, setForm]         = useState(EMPTY_FORM);
+  const [modal, setModal]           = useState({ mode: null, habit: null });
+  const [form, setForm]             = useState(EMPTY_FORM);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [showHelp, setShowHelp]     = useState(false);
+  const [toast, setToast]           = useState(null);
   const weekOffsetRef = React.useRef(weekOffset);
   weekOffsetRef.current = weekOffset;
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 1500);
+  };
 
   // Ref prevents modal title from flickering to "Edit" on close
   const modalModeRef = React.useRef('add');
@@ -275,6 +282,7 @@ export default function HabitTable() {
     else await updateHabit(modal.habit.id, name, goal, form.color, notes);
     closeModal();
     loadData(weekOffset);
+    showToast(modal.mode === 'add' ? 'Habit added' : 'Habit saved');
   };
 
   const handleDelete = async (id) => {
@@ -282,6 +290,7 @@ export default function HabitTable() {
     if (!window.confirm(`Delete "${habit?.name}"? This cannot be undone.`)) return;
     await deleteHabit(id);
     loadData(weekOffset);
+    showToast('Habit deleted');
   };
 
   const moveHabit = async (index, dir) => {
@@ -316,27 +325,30 @@ export default function HabitTable() {
   // ── Week navigation bar ─────────────────────────────
 
   const WeekNav = (
-    <View style={[s.weekNav, isMobile && { marginBottom: 12 }]}>
-      <TouchableOpacity onPress={() => setWeekOffset(o => o - 1)} style={s.weekArrow}>
-        <Text style={s.weekArrowText}>←</Text>
-      </TouchableOpacity>
-      <View style={s.weekCenter}>
-        <Text style={s.weekRange}>{formatWeekRange(currentWeekKey)}</Text>
-        {weekOffset !== 0 && (
-          <TouchableOpacity onPress={() => setWeekOffset(0)}>
-            <Text style={s.weekTodayBtn}>Today</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      <TouchableOpacity
-        onPress={() => setWeekOffset(o => o + 1)}
-        disabled={weekOffset === 0}
-        style={s.weekArrow}
-      >
-        <Text style={[s.weekArrowText, weekOffset === 0 && { color: theme.border }]}>→</Text>
-      </TouchableOpacity>
+  <View style={[s.weekNav, isMobile && { marginBottom: 12 }]}>
+    <TouchableOpacity onPress={() => setWeekOffset(o => o - 1)} style={s.weekArrow}>
+      <Text style={s.weekArrowText}>←</Text>
+    </TouchableOpacity>
+    <View style={s.weekCenter}>
+      <Text style={s.weekRange}>{formatWeekRange(currentWeekKey)}</Text>
+      {weekOffset !== 0 && (
+        <TouchableOpacity onPress={() => setWeekOffset(0)}>
+          <Text style={s.weekTodayBtn}>Today</Text>
+        </TouchableOpacity>
+      )}
     </View>
-  );
+    <TouchableOpacity
+      onPress={() => setWeekOffset(o => o + 1)}
+      disabled={weekOffset === 0}
+      style={s.weekArrow}
+    >
+      <Text style={[s.weekArrowText, weekOffset === 0 && { color: theme.border }]}>→</Text>
+    </TouchableOpacity>
+    <TouchableOpacity onPress={() => setShowHelp(true)} style={{ paddingHorizontal: 8 }}>
+      <Text style={{ color: theme.textSub, fontSize: 16, fontFamily: 'Raleway_600SemiBold' }}>?</Text>
+    </TouchableOpacity>
+  </View>
+);
 
   // ── Mobile card ─────────────────────────────────────
 
@@ -554,6 +566,16 @@ export default function HabitTable() {
             </>
           }
         />
+        {toast && (
+          <View style={{
+            position: 'absolute', bottom: 100, alignSelf: 'center',
+            backgroundColor: theme.surface, borderRadius: 10,
+            paddingHorizontal: 20, paddingVertical: 10,
+            borderWidth: 1, borderColor: theme.border,
+          }}>
+            <Text style={{ color: theme.text, fontSize: 13, fontFamily: 'Raleway_600SemiBold' }}>{toast}</Text>
+          </View>
+        )}
         {FormModal}
       </View>
     );
@@ -611,7 +633,55 @@ export default function HabitTable() {
         }
       />
       {FormModal}
-    </View>
+      <Modal visible={showHelp} transparent animationType="fade" onRequestClose={() => setShowHelp(false)}>
+        <View style={s.modalOverlay}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <View style={[s.modalBox, isMobile && { width: '100%', maxWidth: 420 }]}>
+              <Text style={s.modalTitle}>How It Works</Text>
+
+              <View style={{ gap: 18, marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: '#f9e2af', width: 30, textAlign: 'center' }}>✓</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Check</Text>
+                    <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>You completed the habit that day</Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: theme.delete, opacity: 0.6, width: 30, textAlign: 'center' }}>✕</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Skip</Text>
+                    <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>Intentional rest day, travel, etc. Excluded from your stats</Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <View style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1.5, borderColor: theme.border, marginHorizontal: 3 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Miss</Text>
+                    <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>You didn't do it. Included in your stats</Text>
+                  </View>
+                </View>
+
+                <View style={{ height: 1, backgroundColor: theme.border }} />
+
+                <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', lineHeight: 20 }}>
+                  Right-click (desktop) or long-press (mobile) to skip a day. Hit your weekly goal and the row highlights gold.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowHelp(false)}
+                style={{ backgroundColor: theme.accent, borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 24 }}
+              >
+                <Text style={{ color: theme.accentText, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>Got it</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+          </View>
   );
 }
 

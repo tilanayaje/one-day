@@ -606,7 +606,23 @@ export default function You() {
           />
         </View>
       </View>
-
+        <TouchableOpacity
+          onPress={async () => {
+            if (!window.confirm('Delete ALL habits and check-in data? This cannot be undone.')) return;
+            if (!window.confirm('Are you absolutely sure? Everything will be permanently deleted.')) return;
+            const { error: e1 } = await supabase.from('completions').delete().neq('id', 0);
+            const { error: e2 } = await supabase.from('habits').delete().neq('id', 0);
+            window.location.reload();
+          }}
+          style={{
+            backgroundColor: theme.delete + '1a', borderRadius: 12,
+            padding: 16, alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: theme.delete, fontSize: 14, fontFamily: 'Raleway_600SemiBold' }}>
+            Reset All Data
+          </Text>
+        </TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
   );

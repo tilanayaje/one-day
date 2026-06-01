@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
-// --- Auth ---
+// ── Auth ─────────────────────────────────────────────────
+
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -18,7 +19,22 @@ export async function getSession() {
   return session;
 }
 
-// --- Habits ---
+// ── Preferences ──────────────────────────────────────────
+
+export async function getPreference(key) {
+  const { data } = await supabase
+    .from('preferences').select('value').eq('key', key).maybeSingle();
+  return data?.value ?? null;
+}
+
+export async function setPreference(key, value) {
+  await supabase
+    .from('preferences')
+    .upsert({ key, value }, { onConflict: 'user_id,key' });
+}
+
+// ── Habits ───────────────────────────────────────────────
+
 export async function getHabits() {
   const { data, error } = await supabase
     .from('habits').select('*').order('ord', { ascending: true });
@@ -55,9 +71,9 @@ export async function reorderHabits(orderedHabits) {
   ));
 }
 
-// --- Completions ---
+// ── Completions ──────────────────────────────────────────
 
-// Used by HabitTable — returns both checked and blocked arrays
+// Returns both checked and blocked arrays for a week (used by HabitTable)
 export async function getWeekData(weekKey) {
   const { data, error } = await supabase
     .from('completions').select('*').eq('week_key', weekKey);
@@ -73,20 +89,7 @@ export async function getWeekData(weekKey) {
   return { checks, blocks };
 }
 
-// Used by Analytics / You — blocked days count as unchecked
-export async function getCompletionsForWeek(weekKey) {
-  const { data, error } = await supabase
-    .from('completions').select('*').eq('week_key', weekKey);
-  if (error) throw error;
-  const result = {};
-  for (const row of data) {
-    if (!result[row.habit_id]) result[row.habit_id] = Array(7).fill(false);
-    result[row.habit_id][row.day] = row.checked && !(row.blocked ?? false);
-  }
-  return result;
-}
-
-// Used by Analytics / You — blocked days excluded from counts
+// Returns all completions with blocked data (used by Analytics / You)
 export async function getAllCompletions() {
   const { data, error } = await supabase.from('completions').select('*');
   if (error) throw error;
@@ -116,46 +119,5 @@ export async function toggleBlock(habitId, weekKey, day, blocked) {
     .from('completions')
     .upsert({ habit_id: habitId, week_key: weekKey, day, blocked, checked: false },
              { onConflict: 'habit_id,week_key,day' });
-  if (error) throw error;
-}
-
-// --- Journal ---
-export async function getJournalEntries() {
-  const { data, error } = await supabase
-    .from('journal_entries').select('*').order('date', { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
-export async function addJournalEntry(date, title, body) {
-  const { data, error } = await supabase
-    .from('journal_entries').insert({ date, title, body }).select().single();
-  if (error) throw error;
-  return data;
-}
-
-export async function deleteJournalEntry(id) {
-  const { error } = await supabase.from('journal_entries').delete().eq('id', id);
-  if (error) throw error;
-}
-
-// --- Gratitude ---
-export async function getGratitudeEntries() {
-  const { data, error } = await supabase
-    .from('gratitude_entries').select('*').order('date', { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
-export async function addGratitudeEntry(date, body) {
-  const { data, error } = await supabase
-    .from('gratitude_entries').insert({ date, body }).select().single();
-  if (error) throw error;
-  return data;
-}
-
-export async function updateJournalEntry(id, title, body) {
-  const { error } = await supabase
-    .from('journal_entries').update({ title, body }).eq('id', id);
   if (error) throw error;
 }
