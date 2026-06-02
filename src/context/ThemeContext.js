@@ -25,10 +25,11 @@ const dark = {
 };
 
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark]         = useState(true);
+  const [gridLines, setGridLines]   = useState(false);
 
-  // Load from AsyncStorage first (instant), then sync from Supabase
   useEffect(() => {
+    // Dark mode — AsyncStorage first, then Supabase
     AsyncStorage.getItem('darkMode').then(val => {
       if (val !== null) setIsDark(val === 'true');
     });
@@ -38,6 +39,11 @@ export function ThemeProvider({ children }) {
         AsyncStorage.setItem('darkMode', val);
       }
     }).catch(() => {});
+
+    // Grid lines — AsyncStorage only
+    AsyncStorage.getItem('gridLines').then(val => {
+      if (val !== null) setGridLines(val === 'true');
+    });
   }, []);
 
   const toggleTheme = () => {
@@ -47,8 +53,14 @@ export function ThemeProvider({ children }) {
     setPreference('darkMode', String(next)).catch(() => {});
   };
 
+  const toggleGridLines = () => {
+    const next = !gridLines;
+    setGridLines(next);
+    AsyncStorage.setItem('gridLines', String(next));
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme: isDark ? dark : light, isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: isDark ? dark : light, isDark, toggleTheme, gridLines, toggleGridLines }}>
       {children}
     </ThemeContext.Provider>
   );
