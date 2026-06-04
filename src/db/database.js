@@ -15,114 +15,146 @@ export async function signOut() {
 }
 
 export async function getSession() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
+  } catch { return null; }
 }
 
 // ── Preferences ──────────────────────────────────────────
 
 export async function getPreference(key) {
-  const { data } = await supabase
-    .from('preferences').select('value').eq('key', key).maybeSingle();
-  return data?.value ?? null;
+  try {
+    const { data } = await supabase
+      .from('preferences').select('value').eq('key', key).maybeSingle();
+    return data?.value ?? null;
+  } catch { return null; }
 }
 
 export async function setPreference(key, value) {
-  await supabase
-    .from('preferences')
-    .upsert({ key, value }, { onConflict: 'user_id,key' });
+  try {
+    await supabase
+      .from('preferences')
+      .upsert({ key, value }, { onConflict: 'user_id,key' });
+  } catch { /* non-critical, fail silently */ }
 }
 
 // ── Habits ───────────────────────────────────────────────
 
 export async function getHabits() {
-  const { data, error } = await supabase
-    .from('habits').select('*').order('ord', { ascending: true });
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('habits').select('*').order('ord', { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  } catch { return []; }
 }
 
 export async function addHabit(name, perweek, color = null, notes = null) {
-  const { data: existing } = await supabase
-    .from('habits').select('ord').order('ord', { ascending: false }).limit(1);
-  const ord = existing?.[0]?.ord ?? 0;
-  const { data, error } = await supabase
-    .from('habits')
-    .insert({ name, perweek, color, notes, ord: ord + 1 })
-    .select().single();
-  if (error) throw error;
-  return data;
+  try {
+    const { data: existing } = await supabase
+      .from('habits').select('ord').order('ord', { ascending: false }).limit(1);
+    const ord = existing?.[0]?.ord ?? 0;
+    const { data, error } = await supabase
+      .from('habits')
+      .insert({ name, perweek, color, notes, ord: ord + 1 })
+      .select().single();
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    throw new Error('Failed to add habit. Check your connection and try again.');
+  }
 }
 
 export async function updateHabit(id, name, perweek, color = null, notes = null) {
-  const { error } = await supabase
-    .from('habits').update({ name, perweek, color, notes }).eq('id', id);
-  if (error) throw error;
+  try {
+    const { error } = await supabase
+      .from('habits').update({ name, perweek, color, notes }).eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    throw new Error('Failed to save habit. Check your connection and try again.');
+  }
 }
 
 export async function deleteHabit(id) {
-  const { error } = await supabase.from('habits').delete().eq('id', id);
-  if (error) throw error;
+  try {
+    const { error } = await supabase.from('habits').delete().eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    throw new Error('Failed to delete habit. Check your connection and try again.');
+  }
 }
 
 export async function reorderHabits(orderedHabits) {
-  await Promise.all(orderedHabits.map((h, i) =>
-    supabase.from('habits').update({ ord: i }).eq('id', h.id)
-  ));
+  try {
+    await Promise.all(orderedHabits.map((h, i) =>
+      supabase.from('habits').update({ ord: i }).eq('id', h.id)
+    ));
+  } catch { /* reorder failure is non-critical, UI already updated optimistically */ }
 }
 
 // ── Completions ──────────────────────────────────────────
 
-// Returns both checked and blocked arrays for a week (used by HabitTable)
 export async function getWeekData(weekKey) {
-  const { data, error } = await supabase
-    .from('completions').select('*').eq('week_key', weekKey);
-  if (error) throw error;
-  const checks = {};
-  const blocks = {};
-  for (const row of data) {
-    if (!checks[row.habit_id]) checks[row.habit_id] = Array(7).fill(false);
-    if (!blocks[row.habit_id]) blocks[row.habit_id] = Array(7).fill(false);
-    checks[row.habit_id][row.day] = row.checked;
-    blocks[row.habit_id][row.day] = row.blocked ?? false;
-  }
-  return { checks, blocks };
+  try {
+    const { data, error } = await supabase
+      .from('completions').select('*').eq('week_key', weekKey);
+    if (error) throw error;
+    const checks = {};
+    const blocks = {};
+    for (const row of data) {
+      if (!checks[row.habit_id]) checks[row.habit_id] = Array(7).fill(false);
+      if (!blocks[row.habit_id]) blocks[row.habit_id] = Array(7).fill(false);
+      checks[row.habit_id][row.day] = row.checked;
+      blocks[row.habit_id][row.day] = row.blocked ?? false;
+    }
+    return { checks, blocks };
+  } catch { return { checks: {}, blocks: {} }; }
 }
 
-// Returns all completions with blocked data (used by Analytics / You)
 export async function getAllCompletions() {
-  const { data, error } = await supabase.from('completions').select('*');
-  if (error) throw error;
-  const result = {};
-  const blocked = {};
-  for (const row of data) {
-    if (!result[row.week_key]) result[row.week_key] = {};
-    if (!blocked[row.week_key]) blocked[row.week_key] = {};
-    if (!result[row.week_key][row.habit_id]) result[row.week_key][row.habit_id] = Array(7).fill(false);
-    if (!blocked[row.week_key][row.habit_id]) blocked[row.week_key][row.habit_id] = Array(7).fill(false);
-    result[row.week_key][row.habit_id][row.day] = row.checked && !(row.blocked ?? false);
-    blocked[row.week_key][row.habit_id][row.day] = row.blocked ?? false;
-  }
-  return { checks: result, blocked };
+  try {
+    const { data, error } = await supabase.from('completions').select('*');
+    if (error) throw error;
+    const result = {};
+    const blocked = {};
+    for (const row of data) {
+      if (!result[row.week_key]) result[row.week_key] = {};
+      if (!blocked[row.week_key]) blocked[row.week_key] = {};
+      if (!result[row.week_key][row.habit_id]) result[row.week_key][row.habit_id] = Array(7).fill(false);
+      if (!blocked[row.week_key][row.habit_id]) blocked[row.week_key][row.habit_id] = Array(7).fill(false);
+      result[row.week_key][row.habit_id][row.day] = row.checked && !(row.blocked ?? false);
+      blocked[row.week_key][row.habit_id][row.day] = row.blocked ?? false;
+    }
+    return { checks: result, blocked };
+  } catch { return { checks: {}, blocked: {} }; }
 }
 
 export async function toggleCompletion(habitId, weekKey, day, checked) {
-  const { error } = await supabase
-    .from('completions')
-    .upsert({ habit_id: habitId, week_key: weekKey, day, checked, blocked: false },
-             { onConflict: 'habit_id,week_key,day' });
-  if (error) throw error;
+  try {
+    const { error } = await supabase
+      .from('completions')
+      .upsert({ habit_id: habitId, week_key: weekKey, day, checked, blocked: false },
+               { onConflict: 'habit_id,week_key,day' });
+    if (error) throw error;
+  } catch (e) {
+    throw new Error('Failed to save. Check your connection.');
+  }
 }
 
 export async function toggleBlock(habitId, weekKey, day, blocked) {
-  const { error } = await supabase
-    .from('completions')
-    .upsert({ habit_id: habitId, week_key: weekKey, day, blocked, checked: false },
-             { onConflict: 'habit_id,week_key,day' });
-  if (error) throw error;
+  try {
+    const { error } = await supabase
+      .from('completions')
+      .upsert({ habit_id: habitId, week_key: weekKey, day, blocked, checked: false },
+               { onConflict: 'habit_id,week_key,day' });
+    if (error) throw error;
+  } catch (e) {
+    throw new Error('Failed to save. Check your connection.');
+  }
 }
 
-// for guest users (no sign up / sign in)
+// ── Guest ────────────────────────────────────────────────
 
 export async function signInAnonymously() {
   const { error } = await supabase.auth.signInAnonymously();
@@ -139,77 +171,67 @@ export async function seedDemoData() {
     { name: 'No phone first hour', perweek: 7, color: null, notes: 'Leave it charging in another room', ord: 5 },
   ];
 
-  const { data: inserted, error } = await supabase
-    .from('habits')
-    .insert(demoHabits)
-    .select();
-  if (error || !inserted) return;
+  try {
+    const { data: inserted, error } = await supabase
+      .from('habits').insert(demoHabits).select();
+    if (error || !inserted) return;
 
-  const completions = [];
-  const now = new Date();
-  now.setDate(now.getDate() - now.getDay());
+    const completions = [];
+    const now = new Date();
+    now.setDate(now.getDate() - now.getDay());
 
-  // Patterns per habit: [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
-  // 'c' = check, 'b' = block/skip, null = miss
-  const patterns = {
-    'Go to gym': [
-      ['b', 'c', 'c', 'c', 'c', 'c', 'b'],   // week -2
-      ['b', 'c', 'c', null, 'c', 'c', 'b'],   // week -1
-      ['b', 'c', 'c', 'c', 'c', null, 'b'],   // week 0
-    ],
-    'Code for 1 hour': [
-      [null, 'c', 'c', 'c', 'c', 'c', null],
-      ['c', 'c', null, 'c', 'c', 'c', null],
-      [null, 'c', 'c', 'c', 'c', 'c', 'c'],
-    ],
-    'Morning walk': [
-      ['c', 'c', 'c', null, 'c', 'c', 'c'],
-      ['c', 'c', 'c', 'c', null, 'c', 'c'],
-      ['c', null, 'c', 'c', 'c', 'c', 'c'],
-    ],
-    'Nighttime routine': [
-      ['c', 'c', 'c', 'c', 'c', null, 'c'],
-      ['c', 'c', 'c', 'c', 'c', 'c', null],
-      ['c', 'c', 'c', 'c', 'c', 'c', 'c'],
-    ],
-    'Read 30 pages': [
-      [null, 'c', null, 'c', 'c', null, 'c'],
-      ['c', null, 'c', 'c', null, 'c', null],
-      [null, 'c', 'c', null, 'c', 'c', null],
-    ],
-    'No phone first hour': [
-      ['c', 'c', null, 'c', null, 'c', null],
-      [null, 'c', 'c', null, 'c', null, 'c'],
-      ['c', null, 'c', 'c', null, 'c', 'c'],
-    ],
-  };
+    const patterns = {
+      'Go to gym': [
+        ['b', 'c', 'c', 'c', 'c', 'c', 'b'],
+        ['b', 'c', 'c', null, 'c', 'c', 'b'],
+        ['b', 'c', 'c', 'c', 'c', null, 'b'],
+      ],
+      'Code for 1 hour': [
+        [null, 'c', 'c', 'c', 'c', 'c', null],
+        ['c', 'c', null, 'c', 'c', 'c', null],
+        [null, 'c', 'c', 'c', 'c', 'c', 'c'],
+      ],
+      'Morning walk': [
+        ['c', 'c', 'c', null, 'c', 'c', 'c'],
+        ['c', 'c', 'c', 'c', null, 'c', 'c'],
+        ['c', null, 'c', 'c', 'c', 'c', 'c'],
+      ],
+      'Nighttime routine': [
+        ['c', 'c', 'c', 'c', 'c', null, 'c'],
+        ['c', 'c', 'c', 'c', 'c', 'c', null],
+        ['c', 'c', 'c', 'c', 'c', 'c', 'c'],
+      ],
+      'Read 30 pages': [
+        [null, 'c', null, 'c', 'c', null, 'c'],
+        ['c', null, 'c', 'c', null, 'c', null],
+        [null, 'c', 'c', null, 'c', 'c', null],
+      ],
+      'No phone first hour': [
+        ['c', 'c', null, 'c', null, 'c', null],
+        [null, 'c', 'c', null, 'c', null, 'c'],
+        ['c', null, 'c', 'c', null, 'c', 'c'],
+      ],
+    };
 
-  for (let w = 0; w < 3; w++) {
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() + (w - 2) * 7);
-    const wk = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+    for (let w = 0; w < 3; w++) {
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() + (w - 2) * 7);
+      const wk = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
 
-    for (const habit of inserted) {
-      const weekPattern = patterns[habit.name]?.[w];
-      if (!weekPattern) continue;
-
-      for (let d = 0; d < 7; d++) {
-        const dayDate = new Date(weekStart);
-        dayDate.setDate(dayDate.getDate() + d);
-        if (dayDate > new Date()) continue;
-
-        const state = weekPattern[d];
-        if (state === 'c') {
-          completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: true, blocked: false });
-        } else if (state === 'b') {
-          completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: false, blocked: true });
+      for (const habit of inserted) {
+        const weekPattern = patterns[habit.name]?.[w];
+        if (!weekPattern) continue;
+        for (let d = 0; d < 7; d++) {
+          const dayDate = new Date(weekStart);
+          dayDate.setDate(dayDate.getDate() + d);
+          if (dayDate > new Date()) continue;
+          const state = weekPattern[d];
+          if (state === 'c') completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: true, blocked: false });
+          else if (state === 'b') completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: false, blocked: true });
         }
-        // null = miss, no row inserted
       }
     }
-  }
 
-  if (completions.length > 0) {
-    await supabase.from('completions').insert(completions);
-  }
+    if (completions.length > 0) await supabase.from('completions').insert(completions);
+  } catch { /* demo seed failure is non-critical */ }
 }

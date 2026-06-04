@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPreference, setPreference } from '../db/database';
+import { supabase } from '../db/supabase';
 
 const ThemeContext = createContext();
 
@@ -29,21 +30,28 @@ export function ThemeProvider({ children }) {
   const [gridLines, setGridLines]   = useState(false);
 
   useEffect(() => {
-    // Dark mode — AsyncStorage first, then Supabase
-    AsyncStorage.getItem('darkMode').then(val => {
-      if (val !== null) setIsDark(val === 'true');
-    });
-    getPreference('darkMode').then(val => {
-      if (val !== null) {
-        setIsDark(val === 'true');
-        AsyncStorage.setItem('darkMode', val);
-      }
-    }).catch(() => {});
-
     // Grid lines — AsyncStorage only
     AsyncStorage.getItem('gridLines').then(val => {
       if (val !== null) setGridLines(val === 'true');
     });
+
+    // Dark mode — AsyncStorage first (instant), then Supabase only after auth confirmed
+    AsyncStorage.getItem('darkMode').then(val => {
+      if (val !== null) setIsDark(val === 'true');
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        getPreference('darkMode').then(val => {
+          if (val !== null) {
+            setIsDark(val === 'true');
+            AsyncStorage.setItem('darkMode', val);
+          }
+        }).catch(() => {});
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const toggleTheme = () => {

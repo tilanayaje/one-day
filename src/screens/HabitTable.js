@@ -108,44 +108,48 @@ export default function HabitTable() {
 
   // ── Check & block handlers ──────────────────────────
 
-  const handleToggle = async (habitId, dayIndex) => {
-    if (!isCurrentWeek) return;
-    const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
-    if (isBlocked) {
-      setData(d => ({
-        ...d,
-        thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
-        thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
-      }));
-      await toggleCompletion(habitId, currentWeekKey, dayIndex, true);
-      return;
-    }
-    const current = thisChecks[habitId]?.[dayIndex] ?? false;
+const handleToggle = async (habitId, dayIndex) => {
+  if (!isCurrentWeek) return;
+  const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+  if (isBlocked) {
     setData(d => ({
       ...d,
-      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? !current : v) },
+      thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
+      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
     }));
-    await toggleCompletion(habitId, currentWeekKey, dayIndex, !current);
-  };
+    try { await toggleCompletion(habitId, currentWeekKey, dayIndex, true); }
+    catch (e) { showToast(e.message); }
+    return;
+  }
+  const current = thisChecks[habitId]?.[dayIndex] ?? false;
+  setData(d => ({
+    ...d,
+    thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? !current : v) },
+  }));
+  try { await toggleCompletion(habitId, currentWeekKey, dayIndex, !current); }
+  catch (e) { showToast(e.message); }
+};
 
-  const handleBlock = async (habitId, dayIndex) => {
-    if (!isCurrentWeek) return;
-    const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
-    if (!isBlocked) {
-      setData(d => ({
-        ...d,
-        thisBlocks: { ...d.thisBlocks, [habitId]: (d.thisBlocks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
-        thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? false : v) },
-      }));
-      await toggleBlock(habitId, currentWeekKey, dayIndex, true);
-    } else {
-      setData(d => ({
-        ...d,
-        thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
-      }));
-      await toggleBlock(habitId, currentWeekKey, dayIndex, false);
-    }
-  };
+const handleBlock = async (habitId, dayIndex) => {
+  if (!isCurrentWeek) return;
+  const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+  if (!isBlocked) {
+    setData(d => ({
+      ...d,
+      thisBlocks: { ...d.thisBlocks, [habitId]: (d.thisBlocks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
+      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? false : v) },
+    }));
+    try { await toggleBlock(habitId, currentWeekKey, dayIndex, true); }
+    catch (e) { showToast(e.message); }
+  } else {
+    setData(d => ({
+      ...d,
+      thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
+    }));
+    try { await toggleBlock(habitId, currentWeekKey, dayIndex, false); }
+    catch (e) { showToast(e.message); }
+  }
+};
 
   // ── CRUD handlers ───────────────────────────────────
 
@@ -183,19 +187,27 @@ export default function HabitTable() {
     const name  = form.name.trim();
     const goal  = parseInt(form.goal);
     const notes = form.notes.trim() || null;
-    if (modal.mode === 'add') await addHabit(name, goal, form.color, notes);
-    else await updateHabit(modal.habit.id, name, goal, form.color, notes);
-    closeModal();
-    loadData(weekOffset);
-    showToast(modal.mode === 'add' ? 'Habit added' : 'Habit saved');
+    try {
+      if (modal.mode === 'add') await addHabit(name, goal, form.color, notes);
+      else await updateHabit(modal.habit.id, name, goal, form.color, notes);
+      closeModal();
+      loadData(weekOffset);
+      showToast(modal.mode === 'add' ? 'Habit added' : 'Habit saved');
+    } catch (e) {
+      setForm(f => ({ ...f, error: e.message }));
+    }
   };
 
   const handleDelete = async (id) => {
     const habit = habits.find(h => h.id === id);
     if (!window.confirm(`Delete "${habit?.name}"? This cannot be undone.`)) return;
-    await deleteHabit(id);
-    loadData(weekOffset);
-    showToast('Habit deleted');
+    try {
+      await deleteHabit(id);
+      loadData(weekOffset);
+      showToast('Habit deleted');
+    } catch (e) {
+      showToast(e.message);
+    }
   };
 
   const moveHabit = async (index, dir) => {
@@ -465,6 +477,16 @@ export default function HabitTable() {
         theme={theme} isMobile={isMobile} s={s}
       />
       <HelpModal visible={showHelp} onClose={() => setShowHelp(false)} theme={theme} isMobile={isMobile} s={s} />
+      {toast && (
+          <View style={{
+            position: 'absolute', bottom: 100, alignSelf: 'center',
+            backgroundColor: theme.surface, borderRadius: 10,
+            paddingHorizontal: 20, paddingVertical: 10,
+            borderWidth: 1, borderColor: theme.border,
+          }}>
+          <Text style={{ color: theme.text, fontSize: 13, fontFamily: 'Raleway_600SemiBold' }}>{toast}</Text>
+        </View>
+      )}
     </View>
   );
 }
