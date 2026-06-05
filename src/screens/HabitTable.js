@@ -14,6 +14,9 @@ import MobileDayDot   from '../components/habitTable/MobileDayDot';
 import WeekNav        from '../components/habitTable/WeekNav';
 import FormModal      from '../components/habitTable/FormModal';
 import HelpModal      from '../components/habitTable/HelpModal';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import SortableRow from '../components/habitTable/SortableRow';
 
 // ── Constants ────────────────────────────────────────────
 
@@ -219,6 +222,16 @@ const handleBlock = async (habitId, dayIndex) => {
     await reorderHabits(next);
   };
 
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = habits.findIndex(h => String(h.id) === active.id);
+    const newIndex = habits.findIndex(h => String(h.id) === over.id);
+    const reordered = arrayMove(habits, oldIndex, newIndex);
+    setData(d => ({ ...d, habits: reordered }));
+    await reorderHabits(reordered);
+  };
+
   // ── Derived values ──────────────────────────────────
 
   const count = (checks, blocks, id) => {
@@ -343,6 +356,10 @@ const handleBlock = async (habitId, dayIndex) => {
     );
   };
 
+  const sensors = useSensors(useSensor(PointerSensor, {
+    activationConstraint: { distance: 8 },
+  }));
+
   // ── Loading state ───────────────────────────────────
 
   if (loading) return (
@@ -438,36 +455,55 @@ const handleBlock = async (habitId, dayIndex) => {
         </View>
       )}
 
-      <FlatList
-        data={habits}
-        keyExtractor={item => String(item.id)}
-        renderItem={renderDesktopRow}
-        ListEmptyComponent={<View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>}
-        ListFooterComponent={
-          <>
-            {habits.length > 0 && (
-              <View style={[s.row, s.sumRow]}>
-                <View style={s.orderBtns} />
-                <Text style={[s.habitCellText, s.bold]}>Sum</Text>
-                {DAYS.map((_, i) => <View key={i} style={s.dayCell} />)}
-                <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
-                <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
-                <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
-                {!isCurrentWeek && (
-                  <Text style={[s.statCell, s.bold, { color: totalThis >= totalGoal ? '#a6e3a1' : theme.delete }]}>
-                    {totalGoal - totalThis}
-                  </Text>
-                )}
-              </View>
-            )}
-            {isCurrentWeek && habits.length < MAX_HABITS && (
-              <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
-                <Text style={s.addHabitText}>+ Add Habit</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        }
-      />
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={habits.map(h => String(h.id))} strategy={verticalListSortingStrategy}>
+          {habits.length === 0 && (
+            <View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>
+          )}
+          {habits.map((habit, index) => (
+            <SortableRow
+              key={habit.id}
+              habit={habit}
+              index={index}
+              isCurrentWeek={isCurrentWeek}
+              todayIndex={todayIndex}
+              thisChecks={thisChecks}
+              thisBlocks={thisBlocks}
+              prevChecks={prevChecks}
+              getDayState={getDayState}
+              handleToggle={handleToggle}
+              handleBlock={handleBlock}
+              openEdit={openEdit}
+              count={count}
+              theme={theme}
+              s={s}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      {/* Sum row + Add button */}
+      {habits.length > 0 && (
+        <View style={[s.row, s.sumRow]}>
+          <View style={s.orderBtns} />
+          <Text style={[s.habitCellText, s.bold]}>Sum</Text>
+          {DAYS.map((_, i) => <View key={i} style={s.dayCell} />)}
+          <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
+          <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
+          <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
+          {!isCurrentWeek && (
+            <Text style={[s.statCell, s.bold, { color: totalThis >= totalGoal ? '#a6e3a1' : theme.delete }]}>
+              {totalGoal - totalThis}
+            </Text>
+          )}
+        </View>
+      )}
+      {isCurrentWeek && habits.length < MAX_HABITS && (
+        <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
+          <Text style={s.addHabitText}>+ Add Habit</Text>
+        </TouchableOpacity>
+      )}
+      
       <FormModal
         visible={modal.mode !== null}
         modalModeRef={modalModeRef}

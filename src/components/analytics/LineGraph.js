@@ -42,7 +42,7 @@ function formatLabel(key, granularity) {
 
 // ── Build chart data ─────────────────────────────────────
 
-function buildChartData(habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo) {
+function buildChartData(habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, cumulative) {
   const { from, to } = resolveRange(rangeKey, customFrom, customTo);
   const granularity  = getGranularity(from, to);
 
@@ -72,6 +72,27 @@ function buildChartData(habits, activeIds, allCompletions, allBlocked, rangeKey,
   }
 
   const sortedKeys = Object.keys(buckets).sort();
+
+  if (cumulative) {
+    // Running totals — each point adds to the previous
+    const runningTotals = {};
+    return sortedKeys.map(key => {
+      for (const habit of habits) {
+        if (!activeIds.has(habit.id)) continue;
+        runningTotals[habit.id] = (runningTotals[habit.id] ?? 0) + (buckets[key][habit.id] ?? 0);
+      }
+      return {
+        label: formatLabel(key, granularity),
+        key,
+        ...habits.reduce((acc, h) => {
+          acc[h.id] = activeIds.has(h.id) ? (runningTotals[h.id] ?? 0) : undefined;
+          return acc;
+        }, {}),
+      };
+    });
+  }
+
+  // Frequency — checks per bucket
   return sortedKeys.map(key => ({
     label: formatLabel(key, granularity),
     key,
@@ -115,10 +136,10 @@ function CustomTooltip({ active, payload, label, habits, activeIds, useHabitColo
 
 // ── Main component ───────────────────────────────────────
 
-export default function LineGraph({ habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, useHabitColors, theme, isMobile }) {
+export default function LineGraph({ habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, useHabitColors, cumulative, theme, isMobile }) {
   const data = useMemo(() => buildChartData(
-    habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo
-  ), [habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo]);
+  habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, cumulative
+), [habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, cumulative]);
 
   if (!data || data.length === 0) return (
     <View style={{ paddingVertical: 32, alignItems: 'center' }}>

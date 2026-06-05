@@ -126,6 +126,8 @@ export default function Analytics() {
   const [activeIds, setActiveIds]       = useState(new Set());
   const [useHabitColors, setUseHabitColors] = useState(false);
 
+  const [cumulative, setCumulative] = useState(false);
+
   const navigateToWeek = (weekKey) => {
     const target = new Date(weekKey + 'T00:00:00');
     const now = new Date();
@@ -179,13 +181,15 @@ export default function Analytics() {
         <HabitFilter
           habits={habits} activeIds={activeIds} onToggle={toggleHabit}
           useHabitColors={useHabitColors} onToggleColorMode={() => setUseHabitColors(v => !v)}
+          cumulative={cumulative} onToggleCumulative={() => setCumulative(v => !v)}
           theme={theme} isMobile={isMobile}
         />
         <LineGraph
           habits={habits} activeIds={activeIds}
           allCompletions={allCompletions} allBlocked={allBlocked}
           rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
-          useHabitColors={useHabitColors} theme={theme} isMobile={isMobile}
+          useHabitColors={useHabitColors} cumulative={cumulative}
+          theme={theme} isMobile={isMobile}
         />
       </View>      
       <Text style={s.sectionLabel}>Per Habit</Text>
