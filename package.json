@@ -12,6 +12,9 @@
     "build:electron": "electron-builder"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@expo-google-fonts/raleway": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.16.2",
@@ -28,7 +31,8 @@
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "^4.25.2",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "electron": "^28.3.3",

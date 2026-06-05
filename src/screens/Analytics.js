@@ -6,6 +6,9 @@ import { getHabits, getAllCompletions } from '../db/database';
 import InsightCard from '../components/shared/InsightCard';
 import BarChart from '../components/analytics/BarChart';
 import OverallSummary from '../components/analytics/OverallSummary';
+import LineGraph from '../components/analytics/LineGraph';
+import RangeSelector from '../components/analytics/RangeSelector';
+import HabitFilter, { CHART_COLORS } from '../components/analytics/HabitFilter';
 
 const MOBILE_BREAKPOINT = 768;
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -117,6 +120,12 @@ export default function Analytics() {
   const [expanded, setExpanded]             = useState(null);
   const [loading, setLoading]               = useState(true);
 
+  const [rangeKey, setRangeKey]         = useState('all');
+  const [customFrom, setCustomFrom]     = useState('');
+  const [customTo, setCustomTo]         = useState('');
+  const [activeIds, setActiveIds]       = useState(new Set());
+  const [useHabitColors, setUseHabitColors] = useState(false);
+
   const navigateToWeek = (weekKey) => {
     const target = new Date(weekKey + 'T00:00:00');
     const now = new Date();
@@ -132,7 +141,16 @@ export default function Analytics() {
     setHabits(h);
     setAllCompletions(c.checks);
     setAllBlocked(c.blocked);
+    setActiveIds(new Set(h.map(habit => habit.id)));
     setLoading(false);
+  };
+
+  const toggleHabit = (id) => {
+    setActiveIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
@@ -146,7 +164,30 @@ export default function Analytics() {
         habits={habits} allCompletions={allCompletions}
         allBlocked={allBlocked} theme={theme} isMobile={isMobile}
       />
-
+      <View style={{
+        backgroundColor: theme.surface, borderRadius: 16,
+        padding: isMobile ? 16 : 24, marginBottom: 20,
+        borderWidth: 1, borderColor: theme.border,
+      }}>
+        <Text style={s.sectionLabel}>Trends</Text>
+        <RangeSelector
+          rangeKey={rangeKey} onRangeChange={setRangeKey}
+          customFrom={customFrom} customTo={customTo}
+          onCustomFromChange={setCustomFrom} onCustomToChange={setCustomTo}
+          theme={theme}
+        />
+        <HabitFilter
+          habits={habits} activeIds={activeIds} onToggle={toggleHabit}
+          useHabitColors={useHabitColors} onToggleColorMode={() => setUseHabitColors(v => !v)}
+          theme={theme} isMobile={isMobile}
+        />
+        <LineGraph
+          habits={habits} activeIds={activeIds}
+          allCompletions={allCompletions} allBlocked={allBlocked}
+          rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+          useHabitColors={useHabitColors} theme={theme} isMobile={isMobile}
+        />
+      </View>      
       <Text style={s.sectionLabel}>Per Habit</Text>
 
       {habits.map(habit => {
