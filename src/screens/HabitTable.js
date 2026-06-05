@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, FlatList, useWindowDimensions,
+  StyleSheet, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -10,13 +10,13 @@ import {
   getWeekData, toggleCompletion, toggleBlock, reorderHabits,
 } from '../db/database';
 import DesktopDayCell from '../components/habitTable/DesktopDayCell';
-import MobileDayDot   from '../components/habitTable/MobileDayDot';
 import WeekNav        from '../components/habitTable/WeekNav';
 import FormModal      from '../components/habitTable/FormModal';
 import HelpModal      from '../components/habitTable/HelpModal';
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import SortableRow         from '../components/habitTable/SortableRow';
+import SortableMobileCard  from '../components/habitTable/SortableMobileCard';
+import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import SortableRow from '../components/habitTable/SortableRow';
 
 // ── Constants ────────────────────────────────────────────
 
@@ -44,10 +44,9 @@ export default function HabitTable() {
   const { theme, gridLines } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile  = width < MOBILE_BP;
-  const s = makeStyles(theme, gridLines);
+  const s         = makeStyles(theme, gridLines);
   const route     = useRoute();
 
-  // All week data in one object — updated atomically to prevent flicker
   const [data, setData] = useState({
     habits: [], thisChecks: {}, thisBlocks: {}, prevChecks: {},
     loading: true, todayIndex: new Date().getDay(), isCurrentWeek: true,
@@ -63,15 +62,18 @@ export default function HabitTable() {
   const [toast, setToast]           = useState(null);
   const weekOffsetRef               = React.useRef(weekOffset);
   weekOffsetRef.current             = weekOffset;
-
-  const modalModeRef = React.useRef('add');
-
-  const currentWeekKey = getWeekKeyWithOffset(weekOffset);
+  const modalModeRef                = React.useRef('add');
+  const currentWeekKey              = getWeekKeyWithOffset(weekOffset);
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 1500);
   };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
 
   // ── Data loading ────────────────────────────────────
 
@@ -111,48 +113,48 @@ export default function HabitTable() {
 
   // ── Check & block handlers ──────────────────────────
 
-const handleToggle = async (habitId, dayIndex) => {
-  if (!isCurrentWeek) return;
-  const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
-  if (isBlocked) {
+  const handleToggle = async (habitId, dayIndex) => {
+    if (!isCurrentWeek) return;
+    const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+    if (isBlocked) {
+      setData(d => ({
+        ...d,
+        thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
+        thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
+      }));
+      try { await toggleCompletion(habitId, currentWeekKey, dayIndex, true); }
+      catch (e) { showToast(e.message); }
+      return;
+    }
+    const current = thisChecks[habitId]?.[dayIndex] ?? false;
     setData(d => ({
       ...d,
-      thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
-      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
+      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? !current : v) },
     }));
-    try { await toggleCompletion(habitId, currentWeekKey, dayIndex, true); }
+    try { await toggleCompletion(habitId, currentWeekKey, dayIndex, !current); }
     catch (e) { showToast(e.message); }
-    return;
-  }
-  const current = thisChecks[habitId]?.[dayIndex] ?? false;
-  setData(d => ({
-    ...d,
-    thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? !current : v) },
-  }));
-  try { await toggleCompletion(habitId, currentWeekKey, dayIndex, !current); }
-  catch (e) { showToast(e.message); }
-};
+  };
 
-const handleBlock = async (habitId, dayIndex) => {
-  if (!isCurrentWeek) return;
-  const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
-  if (!isBlocked) {
-    setData(d => ({
-      ...d,
-      thisBlocks: { ...d.thisBlocks, [habitId]: (d.thisBlocks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
-      thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? false : v) },
-    }));
-    try { await toggleBlock(habitId, currentWeekKey, dayIndex, true); }
-    catch (e) { showToast(e.message); }
-  } else {
-    setData(d => ({
-      ...d,
-      thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
-    }));
-    try { await toggleBlock(habitId, currentWeekKey, dayIndex, false); }
-    catch (e) { showToast(e.message); }
-  }
-};
+  const handleBlock = async (habitId, dayIndex) => {
+    if (!isCurrentWeek) return;
+    const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
+    if (!isBlocked) {
+      setData(d => ({
+        ...d,
+        thisBlocks: { ...d.thisBlocks, [habitId]: (d.thisBlocks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? true : v) },
+        thisChecks: { ...d.thisChecks, [habitId]: (d.thisChecks[habitId] ?? Array(7).fill(false)).map((v, i) => i === dayIndex ? false : v) },
+      }));
+      try { await toggleBlock(habitId, currentWeekKey, dayIndex, true); }
+      catch (e) { showToast(e.message); }
+    } else {
+      setData(d => ({
+        ...d,
+        thisBlocks: { ...d.thisBlocks, [habitId]: d.thisBlocks[habitId].map((v, i) => i === dayIndex ? false : v) },
+      }));
+      try { await toggleBlock(habitId, currentWeekKey, dayIndex, false); }
+      catch (e) { showToast(e.message); }
+    }
+  };
 
   // ── CRUD handlers ───────────────────────────────────
 
@@ -174,9 +176,9 @@ const handleBlock = async (habitId, dayIndex) => {
   const validate = () => {
     const name = form.name.trim();
     const goal = parseInt(form.goal);
-    if (!name)                                    return 'Name is required.';
-    if (name.length > 50)                         return 'Max 50 characters.';
-    if (isNaN(goal) || goal < 1 || goal > 7)      return 'Goal must be 1–7.';
+    if (!name)                                         return 'Name is required.';
+    if (name.length > 50)                              return 'Max 50 characters.';
+    if (isNaN(goal) || goal < 1 || goal > 7)           return 'Goal must be 1–7.';
     if (modal.mode === 'add' && habits.length >= MAX_HABITS) return `Max ${MAX_HABITS} habits.`;
     if (habits.some(h => h.id !== modal.habit?.id && h.name.toLowerCase() === name.toLowerCase()))
       return 'Name already exists.';
@@ -213,20 +215,11 @@ const handleBlock = async (habitId, dayIndex) => {
     }
   };
 
-  const moveHabit = async (index, dir) => {
-    const next = [...habits];
-    const swap = index + dir;
-    if (swap < 0 || swap >= next.length) return;
-    [next[index], next[swap]] = [next[swap], next[index]];
-    setData(d => ({ ...d, habits: next }));
-    await reorderHabits(next);
-  };
-
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = habits.findIndex(h => String(h.id) === active.id);
-    const newIndex = habits.findIndex(h => String(h.id) === over.id);
+    const oldIndex  = habits.findIndex(h => String(h.id) === active.id);
+    const newIndex  = habits.findIndex(h => String(h.id) === over.id);
     const reordered = arrayMove(habits, oldIndex, newIndex);
     setData(d => ({ ...d, habits: reordered }));
     await reorderHabits(reordered);
@@ -250,121 +243,19 @@ const handleBlock = async (habitId, dayIndex) => {
     return 'empty';
   };
 
-  // ── Mobile card ─────────────────────────────────────
-
-  const renderMobileCard = ({ item: habit, index }) => {
-    const tw      = count(thisChecks, thisBlocks, habit.id);
-    const goalMet = tw >= habit.perweek;
-    const net     = habit.perweek - tw;
-
-    return (
-      <View style={[s.mobileCard, habit.color && { borderLeftColor: habit.color }, goalMet && { borderLeftColor: '#f9e2af' }]}>
-        <View style={s.mobileCardHeader}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(habit)}>
-            <Text style={s.mobileHabitName} numberOfLines={2}>{habit.name}</Text>
-            {habit.notes ? <Text style={s.mobileNotePreview} numberOfLines={1}>{habit.notes}</Text> : null}
-          </TouchableOpacity>
-          <View style={s.mobileCardRight}>
-            <Text style={[s.mobileCount, goalMet && { color: '#f9e2af' }]}>
-              {tw}<Text style={s.mobileCountGoal}>/{habit.perweek}</Text>
-            </Text>
-            {!isCurrentWeek && (
-              <Text style={{ fontSize: 14, fontFamily: 'Raleway_600SemiBold', color: net <= 0 ? '#a6e3a1' : theme.delete }}>
-                {net > 0 ? '+' : ''}{net}
-              </Text>
-            )}
-          </View>
-        </View>
-        <View style={s.mobileDayRow}>
-          {DAYS.map((_, i) => (
-            <MobileDayDot
-              key={i}
-              state={getDayState(habit.id, i)}
-              isToday={i === todayIndex}
-              isCurrentWeek={isCurrentWeek}
-              onToggle={() => handleToggle(habit.id, i)}
-              onBlock={() => handleBlock(habit.id, i)}
-              dayInitial={DAY_INITIALS[i]}
-              s={s}
-              theme={theme}
-            />
-          ))}
-        </View>
-        {isCurrentWeek && (
-          <View style={s.mobileOrderRow}>
-            <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
-              <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => moveHabit(index, 1)} disabled={index === habits.length - 1}>
-              <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // ── Desktop row ─────────────────────────────────────
-
-  const renderDesktopRow = ({ item: habit, index }) => {
-    const tw      = count(thisChecks, thisBlocks, habit.id);
-    const pw      = count(prevChecks, {}, habit.id);
-    const goalMet = tw >= habit.perweek;
-    const net     = habit.perweek - tw;
-
-    return (
-      <View style={[s.row, habit.color && { borderLeftColor: habit.color }, goalMet && s.goalMet]}>
-        {isCurrentWeek ? (
-          <View style={s.orderBtns}>
-            <TouchableOpacity onPress={() => moveHabit(index, -1)} disabled={index === 0}>
-              <Text style={[s.orderBtn, index === 0 && s.disabledBtn]}>▲</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => moveHabit(index, 1)} disabled={index === habits.length - 1}>
-              <Text style={[s.orderBtn, index === habits.length - 1 && s.disabledBtn]}>▼</Text>
-            </TouchableOpacity>
-          </View>
-        ) : <View style={s.orderBtns} />}
-
-        <TouchableOpacity style={s.habitCellBtn} onPress={() => openEdit(habit)}>
-          <Text style={s.habitCell} numberOfLines={2}>{habit.name}</Text>
-          {habit.notes ? <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text> : null}
-        </TouchableOpacity>
-
-        {DAYS.map((_, i) => (
-          <DesktopDayCell
-            key={i}
-            habitId={habit.id}
-            dayIndex={i}
-            state={getDayState(habit.id, i)}
-            isToday={i === todayIndex}
-            isCurrentWeek={isCurrentWeek}
-            onToggle={() => handleToggle(habit.id, i)}
-            onBlock={() => handleBlock(habit.id, i)}
-            s={s}
-          />
-        ))}
-
-        <Text style={s.statCell}>{tw}</Text>
-        <Text style={s.statCell}>{pw}</Text>
-        <Text style={s.statCell}>{habit.perweek}</Text>
-        {!isCurrentWeek && (
-          <Text style={[s.statCell, { color: net <= 0 ? '#a6e3a1' : theme.delete, fontFamily: 'Raleway_600SemiBold' }]}>
-            {net}
-          </Text>
-        )}
-      </View>
-    );
-  };
-
-  const sensors = useSensors(useSensor(PointerSensor, {
-    activationConstraint: { distance: 8 },
-  }));
-
   // ── Loading state ───────────────────────────────────
 
   if (loading) return (
     <View style={s.center}><Text style={s.muted}>Loading...</Text></View>
   );
+
+  // ── Shared DnD list ─────────────────────────────────
+
+  const sharedProps = {
+    isCurrentWeek, todayIndex, thisChecks, thisBlocks, prevChecks,
+    getDayState, handleToggle, handleBlock, openEdit, count, theme, s,
+    habitsLength: habits.length,
+  };
 
   // ── Mobile layout ───────────────────────────────────
 
@@ -380,28 +271,30 @@ const handleBlock = async (habitId, dayIndex) => {
           onHelp={() => setShowHelp(true)}
           theme={theme} isMobile={isMobile} s={s}
         />
-        <FlatList
-          data={habits}
-          keyExtractor={item => String(item.id)}
-          renderItem={renderMobileCard}
-          ListEmptyComponent={<View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>}
-          ListFooterComponent={
-            <>
-              {habits.length > 0 && (
-                <View style={s.mobileSumRow}>
-                  <Text style={[s.muted, { fontFamily: 'Raleway_600SemiBold' }]}>This week: {totalThis} / {totalGoal}</Text>
-                  <Text style={s.muted}>Prev week: {totalPrev}</Text>
-                </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={habits.map(h => String(h.id))} strategy={verticalListSortingStrategy}>
+              {habits.length === 0 && (
+                <View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>
               )}
-              {isCurrentWeek && habits.length < MAX_HABITS && (
-                <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
-                  <Text style={s.addHabitText}>+ Add Habit</Text>
-                </TouchableOpacity>
-              )}
-              <View style={{ height: 40 }} />
-            </>
-          }
-        />
+              {habits.map(habit => (
+                <SortableMobileCard key={habit.id} habit={habit} {...sharedProps} />
+              ))}
+            </SortableContext>
+          </DndContext>
+          {habits.length > 0 && (
+            <View style={s.mobileSumRow}>
+              <Text style={[s.muted, { fontFamily: 'Raleway_600SemiBold' }]}>This week: {totalThis} / {totalGoal}</Text>
+              <Text style={s.muted}>Prev week: {totalPrev}</Text>
+            </View>
+          )}
+          {isCurrentWeek && habits.length < MAX_HABITS && (
+            <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
+              <Text style={s.addHabitText}>+ Add Habit</Text>
+            </TouchableOpacity>
+          )}
+          <View style={{ height: 40 }} />
+        </ScrollView>
         {toast && (
           <View style={{
             position: 'absolute', bottom: 100, alignSelf: 'center',
@@ -461,28 +354,11 @@ const handleBlock = async (habitId, dayIndex) => {
             <View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>
           )}
           {habits.map((habit, index) => (
-            <SortableRow
-              key={habit.id}
-              habit={habit}
-              index={index}
-              isCurrentWeek={isCurrentWeek}
-              todayIndex={todayIndex}
-              thisChecks={thisChecks}
-              thisBlocks={thisBlocks}
-              prevChecks={prevChecks}
-              getDayState={getDayState}
-              handleToggle={handleToggle}
-              handleBlock={handleBlock}
-              openEdit={openEdit}
-              count={count}
-              theme={theme}
-              s={s}
-            />
+            <SortableRow key={habit.id} habit={habit} index={index} {...sharedProps} />
           ))}
         </SortableContext>
       </DndContext>
 
-      {/* Sum row + Add button */}
       {habits.length > 0 && (
         <View style={[s.row, s.sumRow]}>
           <View style={s.orderBtns} />
@@ -503,7 +379,6 @@ const handleBlock = async (habitId, dayIndex) => {
           <Text style={s.addHabitText}>+ Add Habit</Text>
         </TouchableOpacity>
       )}
-      
       <FormModal
         visible={modal.mode !== null}
         modalModeRef={modalModeRef}
@@ -514,12 +389,12 @@ const handleBlock = async (habitId, dayIndex) => {
       />
       <HelpModal visible={showHelp} onClose={() => setShowHelp(false)} theme={theme} isMobile={isMobile} s={s} />
       {toast && (
-          <View style={{
-            position: 'absolute', bottom: 100, alignSelf: 'center',
-            backgroundColor: theme.surface, borderRadius: 10,
-            paddingHorizontal: 20, paddingVertical: 10,
-            borderWidth: 1, borderColor: theme.border,
-          }}>
+        <View style={{
+          position: 'absolute', bottom: 100, alignSelf: 'center',
+          backgroundColor: theme.surface, borderRadius: 10,
+          paddingHorizontal: 20, paddingVertical: 10,
+          borderWidth: 1, borderColor: theme.border,
+        }}>
           <Text style={{ color: theme.text, fontSize: 13, fontFamily: 'Raleway_600SemiBold' }}>{toast}</Text>
         </View>
       )}
@@ -548,7 +423,7 @@ function makeStyles(t, gridLines) {
     dayCellHeader:       { width: 80, alignItems: 'center', justifyContent: 'center' },
     statCellHeader:      { width: 88, textAlign: 'center' },
     todayHeader:         { color: t.todayText },
-    row:                 { flexDirection: 'row', borderBottomWidth: gridLines ? 1 : 1, borderColor: t.border, alignItems: 'center', minHeight: 60, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+    row:                 { flexDirection: 'row', borderBottomWidth: 1, borderColor: t.border, alignItems: 'center', minHeight: 60, borderLeftWidth: 3, borderLeftColor: 'transparent' },
     goalMet:             { borderLeftColor: '#f9e2af' },
     sumRow:              { backgroundColor: t.sumRow, borderTopWidth: 2, borderTopColor: t.border, marginTop: 2 },
     orderBtns:           { width: 40, alignItems: 'center', justifyContent: 'center', gap: 4 },
@@ -566,7 +441,7 @@ function makeStyles(t, gridLines) {
     bold:                { fontFamily: 'Raleway_600SemiBold', color: t.text },
     addHabitBtn:         { marginTop: 16, paddingVertical: 12, paddingHorizontal: 4 },
     addHabitText:        { color: t.accent, fontSize: 14, letterSpacing: 0.4, fontFamily: 'Raleway_600SemiBold' },
-    mobileCard:          { backgroundColor: t.surface, borderRadius: 14, marginBottom: 10, padding: 16, borderWidth: 1, borderColor: t.border, borderLeftWidth: 4, borderLeftColor: 'transparent' },
+    mobileCard:          { backgroundColor: t.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: t.border, borderLeftWidth: 4, borderLeftColor: 'transparent' },
     mobileCardHeader:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
     mobileHabitName:     { color: t.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold', lineHeight: 22, flex: 1 },
     mobileNotePreview:   { color: t.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 3, fontStyle: 'italic' },
