@@ -26,18 +26,19 @@ const dark = {
 };
 
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark]         = useState(true);
-  const [gridLines, setGridLines]   = useState(false);
+  const [isDark, setIsDark]               = useState(true);
+  const [gridLines, setGridLines]         = useState(false);
+  const [editPastWeeks, setEditPastWeeks] = useState(false);
 
   useEffect(() => {
-    // Grid lines — AsyncStorage only
     AsyncStorage.getItem('gridLines').then(val => {
       if (val !== null) setGridLines(val === 'true');
     });
-
-    // Dark mode — AsyncStorage first (instant), then Supabase only after auth confirmed
     AsyncStorage.getItem('darkMode').then(val => {
       if (val !== null) setIsDark(val === 'true');
+    });
+    AsyncStorage.getItem('editPastWeeks').then(val => {
+      if (val !== null) setEditPastWeeks(val === 'true');
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -67,8 +68,18 @@ export function ThemeProvider({ children }) {
     AsyncStorage.setItem('gridLines', String(next));
   };
 
+  const toggleEditPastWeeks = () => {
+    const next = !editPastWeeks;
+    setEditPastWeeks(next);
+    AsyncStorage.setItem('editPastWeeks', String(next));
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme: isDark ? dark : light, isDark, toggleTheme, gridLines, toggleGridLines }}>
+    <ThemeContext.Provider value={{
+      theme: isDark ? dark : light, isDark, toggleTheme,
+      gridLines, toggleGridLines,
+      editPastWeeks, toggleEditPastWeeks,
+    }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -48,12 +48,12 @@ function PreferenceRow({ label, sub, value, onToggle, theme }) {
   );
 }
 
-export default function PreferencesSection({ theme, gridLines, toggleGridLines, isMobile }) {
+export default function PreferencesSection({ theme, gridLines, toggleGridLines, editPastWeeks, toggleEditPastWeeks, isMobile }) {
   return (
     <View style={{ marginBottom: 28 }}>
       <SectionLabel text="Preferences" theme={theme} />
-      {!isMobile && (
-        <PreferenceGroup label="Habit Table" theme={theme}>
+      <PreferenceGroup label="Compound Table" theme={theme}>
+        {!isMobile && (
           <PreferenceRow
             label="Grid Lines"
             sub="Show column separators on the habit table"
@@ -61,8 +61,15 @@ export default function PreferencesSection({ theme, gridLines, toggleGridLines, 
             onToggle={toggleGridLines}
             theme={theme}
           />
-        </PreferenceGroup>
-      )}
+        )}
+        <PreferenceRow
+          label="Edit Past Weeks"
+          sub="Allow checking and skipping days from previous weeks"
+          value={editPastWeeks}
+          onToggle={toggleEditPastWeeks}
+          theme={theme}
+        />
+      </PreferenceGroup>
     </View>
   );
 }

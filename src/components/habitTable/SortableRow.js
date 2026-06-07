@@ -10,7 +10,7 @@ export default function SortableRow({
   habit, index, isCurrentWeek, todayIndex,
   thisChecks, thisBlocks, prevChecks,
   getDayState, handleToggle, handleBlock, openEdit,
-  count, theme, s,
+  count, theme, s, editPastWeeks,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(habit.id),
@@ -27,11 +27,12 @@ export default function SortableRow({
   const pw      = count(prevChecks, {}, habit.id);
   const goalMet = tw >= habit.perweek;
   const net     = habit.perweek - tw;
+  const canEdit = isCurrentWeek || editPastWeeks;
 
   return (
     <div ref={setNodeRef} style={style}>
       <View style={[s.row, habit.color && { borderLeftColor: habit.color }, goalMet && s.goalMet]}>
-        {/* Drag handle */}
+        {/* Drag handle — only on current week */}
         {isCurrentWeek ? (
           <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40 }}>
             <Text style={{ color: theme.textSub, fontSize: 16, userSelect: 'none' }}>⠿</Text>
@@ -51,6 +52,7 @@ export default function SortableRow({
             state={getDayState(habit.id, i)}
             isToday={i === todayIndex}
             isCurrentWeek={isCurrentWeek}
+            editPastWeeks={editPastWeeks}
             onToggle={() => handleToggle(habit.id, i)}
             onBlock={() => handleBlock(habit.id, i)}
             s={s}

@@ -229,7 +229,7 @@ function computeHabitConsistency(habits, allCompletions, allBlocked = {}) {
 // ── Main You screen ──────────────────────────────────────
 
 export default function You() {
-  const { theme, isDark, gridLines, toggleGridLines } = useTheme();
+  const { theme, isDark, gridLines, toggleGridLines, editPastWeeks, toggleEditPastWeeks } = useTheme();
   const navigation = useNavigation();
   const { width }  = useWindowDimensions();
   const isMobile   = width < MOBILE_BREAKPOINT;
@@ -384,8 +384,14 @@ export default function You() {
           )}
         </View>
       
-      <PreferencesSection theme={theme} gridLines={gridLines} toggleGridLines={toggleGridLines} isMobile={isMobile} />
-      {/* Export */}
+      <PreferencesSection
+        theme={theme}
+        gridLines={gridLines}
+        toggleGridLines={toggleGridLines}
+        editPastWeeks={editPastWeeks}
+        toggleEditPastWeeks={toggleEditPastWeeks}
+        isMobile={isMobile}
+      />
       <TouchableOpacity
         onPress={async () => {
           const { data: habits }      = await supabase.from('habits').select('*').order('ord');

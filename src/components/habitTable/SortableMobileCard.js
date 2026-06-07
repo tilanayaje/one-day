@@ -11,7 +11,7 @@ export default function SortableMobileCard({
   habit, isCurrentWeek, todayIndex,
   thisChecks, thisBlocks,
   getDayState, handleToggle, handleBlock, openEdit,
-  count, theme, s, habitsLength,
+  count, theme, s, habitsLength, editPastWeeks,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(habit.id),
@@ -28,6 +28,7 @@ export default function SortableMobileCard({
   const tw      = count(thisChecks, thisBlocks, habit.id);
   const goalMet = tw >= habit.perweek;
   const net     = habit.perweek - tw;
+  const canEdit = isCurrentWeek || editPastWeeks;
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -46,7 +47,7 @@ export default function SortableMobileCard({
                 {net > 0 ? '+' : ''}{net}
               </Text>
             )}
-            {/* Drag handle */}
+            {/* Drag handle — only on current week */}
             {isCurrentWeek && (
               <div {...attributes} {...listeners} style={{ cursor: 'grab', padding: 4, touchAction: 'none' }}>
                 <Text style={{ color: theme.textSub, fontSize: 18, userSelect: 'none' }}>⠿</Text>
@@ -60,7 +61,7 @@ export default function SortableMobileCard({
               key={i}
               state={getDayState(habit.id, i)}
               isToday={i === todayIndex}
-              isCurrentWeek={isCurrentWeek}
+              isCurrentWeek={canEdit}
               onToggle={() => handleToggle(habit.id, i)}
               onBlock={() => handleBlock(habit.id, i)}
               dayInitial={DAY_INITIALS[i]}

@@ -41,7 +41,7 @@ function getWeekKeyWithOffset(offset) {
 // ── Main component ───────────────────────────────────────
 
 export default function HabitTable() {
-  const { theme, gridLines } = useTheme();
+  const { theme, gridLines, editPastWeeks } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile  = width < MOBILE_BP;
   const s         = makeStyles(theme, gridLines);
@@ -114,7 +114,7 @@ export default function HabitTable() {
   // ── Check & block handlers ──────────────────────────
 
   const handleToggle = async (habitId, dayIndex) => {
-    if (!isCurrentWeek) return;
+    if (!isCurrentWeek && !editPastWeeks) return;
     const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
     if (isBlocked) {
       setData(d => ({
@@ -136,7 +136,7 @@ export default function HabitTable() {
   };
 
   const handleBlock = async (habitId, dayIndex) => {
-    if (!isCurrentWeek) return;
+    if (!isCurrentWeek && !editPastWeeks) return;
     const isBlocked = thisBlocks[habitId]?.[dayIndex] ?? false;
     if (!isBlocked) {
       setData(d => ({
@@ -254,7 +254,7 @@ export default function HabitTable() {
   const sharedProps = {
     isCurrentWeek, todayIndex, thisChecks, thisBlocks, prevChecks,
     getDayState, handleToggle, handleBlock, openEdit, count, theme, s,
-    habitsLength: habits.length,
+    habitsLength: habits.length, editPastWeeks,
   };
 
   // ── Mobile layout ───────────────────────────────────
