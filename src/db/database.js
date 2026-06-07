@@ -177,61 +177,40 @@ export async function seedDemoData() {
     if (error || !inserted) return;
 
     const completions = [];
-    const now = new Date();
-    now.setDate(now.getDate() - now.getDay());
+  const now = new Date();
+  now.setDate(now.getDate() - now.getDay());
 
-    const patterns = {
-      'Go to gym': [
-        ['b', 'c', 'c', 'c', 'c', 'c', 'b'],
-        ['b', 'c', 'c', null, 'c', 'c', 'b'],
-        ['b', 'c', 'c', 'c', 'c', null, 'b'],
-      ],
-      'Code for 1 hour': [
-        [null, 'c', 'c', 'c', 'c', 'c', null],
-        ['c', 'c', null, 'c', 'c', 'c', null],
-        [null, 'c', 'c', 'c', 'c', 'c', 'c'],
-      ],
-      'Morning walk': [
-        ['c', 'c', 'c', null, 'c', 'c', 'c'],
-        ['c', 'c', 'c', 'c', null, 'c', 'c'],
-        ['c', null, 'c', 'c', 'c', 'c', 'c'],
-      ],
-      'Nighttime routine': [
-        ['c', 'c', 'c', 'c', 'c', null, 'c'],
-        ['c', 'c', 'c', 'c', 'c', 'c', null],
-        ['c', 'c', 'c', 'c', 'c', 'c', 'c'],
-      ],
-      'Read 30 pages': [
-        [null, 'c', null, 'c', 'c', null, 'c'],
-        ['c', null, 'c', 'c', null, 'c', null],
-        [null, 'c', 'c', null, 'c', 'c', null],
-      ],
-      'No phone first hour': [
-        ['c', 'c', null, 'c', null, 'c', null],
-        [null, 'c', 'c', null, 'c', null, 'c'],
-        ['c', null, 'c', 'c', null, 'c', 'c'],
-      ],
-    };
+  // Generate 9 weeks of randomized data per habit
+  for (let w = 0; w < 16; w++) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() + (w - 15) * 7);
+    const wk = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
 
-    for (let w = 0; w < 3; w++) {
-      const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() + (w - 2) * 7);
-      const wk = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+    for (const habit of inserted) {
+      // Each habit has a base consistency rate — makes data feel realistic per habit
+      const baseRate = 0.5 + Math.random() * 0.4; // 50–90% consistency per habit
 
-      for (const habit of inserted) {
-        const weekPattern = patterns[habit.name]?.[w];
-        if (!weekPattern) continue;
-        for (let d = 0; d < 7; d++) {
-          const dayDate = new Date(weekStart);
-          dayDate.setDate(dayDate.getDate() + d);
-          if (dayDate > new Date()) continue;
-          const state = weekPattern[d];
-          if (state === 'c') completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: true, blocked: false });
-          else if (state === 'b') completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: false, blocked: true });
+      for (let d = 0; d < 7; d++) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(dayDate.getDate() + d);
+        if (dayDate > new Date()) continue;
+
+        const roll = Math.random();
+
+        if (roll < baseRate * 0.85) {
+          // Check
+          completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: true, blocked: false });
+        } else if (roll < baseRate * 0.85 + 0.08) {
+          // Block/skip — ~8% chance
+          completions.push({ habit_id: habit.id, week_key: wk, day: d, checked: false, blocked: true });
         }
+        // Otherwise miss — no row inserted
       }
     }
+  }
 
-    if (completions.length > 0) await supabase.from('completions').insert(completions);
+  if (completions.length > 0) {
+    await supabase.from('completions').insert(completions);
+  }
   } catch { /* demo seed failure is non-critical */ }
 }
