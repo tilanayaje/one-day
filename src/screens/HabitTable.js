@@ -348,37 +348,39 @@ export default function HabitTable() {
         </View>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={habits.map(h => String(h.id))} strategy={verticalListSortingStrategy}>
-          {habits.length === 0 && (
-            <View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>
-          )}
-          {habits.map((habit, index) => (
-            <SortableRow key={habit.id} habit={habit} index={index} {...sharedProps} />
-          ))}
-        </SortableContext>
-      </DndContext>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={habits.map(h => String(h.id))} strategy={verticalListSortingStrategy}>
+            {habits.length === 0 && (
+              <View style={s.emptyState}><Text style={s.emptyText}>No habits yet.</Text></View>
+            )}
+            {habits.map((habit, index) => (
+              <SortableRow key={habit.id} habit={habit} index={index} {...sharedProps} />
+            ))}
+          </SortableContext>
+        </DndContext>
 
-      {habits.length > 0 && (
-        <View style={[s.row, s.sumRow]}>
-          <View style={s.orderBtns} />
-          <Text style={[s.habitCellText, s.bold]}>Sum</Text>
-          {DAYS.map((_, i) => <View key={i} style={s.dayCell} />)}
-          <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
-          <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
-          <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
-          {!isCurrentWeek && (
-            <Text style={[s.statCell, s.bold, { color: totalThis >= totalGoal ? '#a6e3a1' : theme.delete }]}>
-              {totalGoal - totalThis}
-            </Text>
-          )}
-        </View>
-      )}
-      {isCurrentWeek && habits.length < MAX_HABITS && (
-        <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
-          <Text style={s.addHabitText}>+ Add Habit</Text>
-        </TouchableOpacity>
-      )}
+        {habits.length > 0 && (
+          <View style={[s.row, s.sumRow]}>
+            <View style={s.orderBtns} />
+            <Text style={[s.habitCellText, s.bold]}>Sum</Text>
+            {DAYS.map((_, i) => <View key={i} style={s.dayCell} />)}
+            <Text style={[s.statCell, s.bold]}>{totalThis}</Text>
+            <Text style={[s.statCell, s.bold]}>{totalPrev}</Text>
+            <Text style={[s.statCell, s.bold]}>{totalGoal}</Text>
+            {!isCurrentWeek && (
+              <Text style={[s.statCell, s.bold, { color: totalThis >= totalGoal ? '#a6e3a1' : theme.delete }]}>
+                {totalGoal - totalThis}
+              </Text>
+            )}
+          </View>
+        )}
+        {isCurrentWeek && habits.length < MAX_HABITS && (
+          <TouchableOpacity style={s.addHabitBtn} onPress={openAdd}>
+            <Text style={s.addHabitText}>+ Add Habit</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
       <FormModal
         visible={modal.mode !== null}
         modalModeRef={modalModeRef}
