@@ -3,12 +3,13 @@ import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView } from 'reac
 
 const ROW_COLORS = [
   null,
-  '#FF6B6B', '#FF4757', '#FF7F50',
+  '#FF4757', '#FF6B6B', '#FF7F50',
   '#FF9F43', '#FFA502', '#FECA57',
-  '#1DD1A1', '#2ED573', '#00CEC9',
+  '#F9CA24', '#FFD700',
+  '#1DD1A1', '#2ED573', '#00D2D3', '#00CEC9',
   '#48DBFB', '#1E90FF', '#4A90D9',
-  '#A29BFE', '#5352ED', '#6C5CE7',
-  '#FD79A8', '#FF6EB4', '#B8860B',
+  '#5352ED', '#6C5CE7', '#A29BFE',
+  '#FD79A8', '#FF6EB4', '#FF9FF3',
 ];
 
 export default function FormModal({ visible, modalModeRef, form, setField, onSave, onClose, onDelete, theme, isMobile, s }) {
