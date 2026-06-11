@@ -48,7 +48,10 @@ function PreferenceRow({ label, sub, value, onToggle, theme }) {
   );
 }
 
-export default function PreferencesSection({ theme, gridLines, toggleGridLines, editPastWeeks, toggleEditPastWeeks, isMobile }) {
+export default function PreferencesSection({
+  theme, gridLines, toggleGridLines, editPastWeeks, toggleEditPastWeeks,
+  highlightsPermanent, toggleHighlightsPermanent, isMobile,
+}) {
   return (
     <View style={{ marginBottom: 28 }}>
       <SectionLabel text="Preferences" theme={theme} />
@@ -67,6 +70,13 @@ export default function PreferencesSection({ theme, gridLines, toggleGridLines, 
           sub="Allow checking and skipping days from previous weeks"
           value={editPastWeeks}
           onToggle={toggleEditPastWeeks}
+          theme={theme}
+        />
+        <PreferenceRow
+          label="Permanent Highlights"
+          sub="Highlights persist until manually removed instead of resetting every Sunday"
+          value={highlightsPermanent}
+          onToggle={toggleHighlightsPermanent}
           theme={theme}
         />
       </PreferenceGroup>

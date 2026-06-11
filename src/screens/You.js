@@ -229,7 +229,7 @@ function computeHabitConsistency(habits, allCompletions, allBlocked = {}) {
 // ── Main You screen ──────────────────────────────────────
 
 export default function You() {
-  const { theme, isDark, gridLines, toggleGridLines, editPastWeeks, toggleEditPastWeeks } = useTheme();
+  const { theme, isDark, gridLines, toggleGridLines, editPastWeeks, toggleEditPastWeeks, highlightsPermanent, toggleHighlightsPermanent } = useTheme();
   const navigation = useNavigation();
   const { width }  = useWindowDimensions();
   const isMobile   = width < MOBILE_BREAKPOINT;
@@ -390,6 +390,8 @@ export default function You() {
         toggleGridLines={toggleGridLines}
         editPastWeeks={editPastWeeks}
         toggleEditPastWeeks={toggleEditPastWeeks}
+        highlightsPermanent={highlightsPermanent}
+        toggleHighlightsPermanent={toggleHighlightsPermanent}
         isMobile={isMobile}
       />
       <TouchableOpacity

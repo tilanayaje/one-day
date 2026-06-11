@@ -43,7 +43,7 @@ function getWeekKeyWithOffset(offset) {
 // ── Main component ───────────────────────────────────────
 
 export default function HabitTable() {
-  const { theme, gridLines, editPastWeeks } = useTheme();
+  const { theme, gridLines, editPastWeeks, highlightsPermanent } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile  = width < MOBILE_BP;
   const s         = makeStyles(theme, gridLines);
@@ -65,6 +65,8 @@ export default function HabitTable() {
   const [highlighted, setHighlighted] = useState(new Set());
   const weekOffsetRef               = React.useRef(weekOffset);
   weekOffsetRef.current             = weekOffset;
+  const highlightsPermanentRef      = React.useRef(highlightsPermanent);
+  highlightsPermanentRef.current    = highlightsPermanent;
   const modalModeRef                = React.useRef('add');
   const currentWeekKey              = getWeekKeyWithOffset(weekOffset);
 
@@ -84,8 +86,9 @@ export default function HabitTable() {
     const wk   = getWeekKeyWithOffset(offset);
     const prev = getWeekKeyWithOffset(offset - 1);
     if (showLoader) setData(d => ({ ...d, loading: true }));
+    const permanent = highlightsPermanentRef.current;
     const [h, thisD, prevD, hlCache] = await Promise.all([
-      getHabits(), getWeekData(wk), getWeekData(prev), getHighlightsCache(),
+      getHabits(), getWeekData(wk), getWeekData(prev), getHighlightsCache(permanent),
     ]);
     setHighlighted(hlCache);
     setData({
@@ -97,7 +100,7 @@ export default function HabitTable() {
       todayIndex: offset === 0 ? new Date().getDay() : -1,
       isCurrentWeek: offset === 0,
     });
-    getHighlights().then(setHighlighted).catch(() => {});
+    getHighlights(permanent).then(setHighlighted).catch(() => {});
   };
 
   const firstLoad = React.useRef(true);

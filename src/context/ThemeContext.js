@@ -26,9 +26,10 @@ const dark = {
 };
 
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark]               = useState(true);
-  const [gridLines, setGridLines]         = useState(false);
-  const [editPastWeeks, setEditPastWeeks] = useState(false);
+  const [isDark, setIsDark]                           = useState(true);
+  const [gridLines, setGridLines]                     = useState(false);
+  const [editPastWeeks, setEditPastWeeks]             = useState(false);
+  const [highlightsPermanent, setHighlightsPermanent] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('gridLines').then(val => {
@@ -39,6 +40,9 @@ export function ThemeProvider({ children }) {
     });
     AsyncStorage.getItem('editPastWeeks').then(val => {
       if (val !== null) setEditPastWeeks(val === 'true');
+    });
+    AsyncStorage.getItem('highlightsPermanent').then(val => {
+      if (val !== null) setHighlightsPermanent(val === 'true');
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -74,11 +78,18 @@ export function ThemeProvider({ children }) {
     AsyncStorage.setItem('editPastWeeks', String(next));
   };
 
+  const toggleHighlightsPermanent = () => {
+    const next = !highlightsPermanent;
+    setHighlightsPermanent(next);
+    AsyncStorage.setItem('highlightsPermanent', String(next));
+  };
+
   return (
     <ThemeContext.Provider value={{
       theme: isDark ? dark : light, isDark, toggleTheme,
       gridLines, toggleGridLines,
       editPastWeeks, toggleEditPastWeeks,
+      highlightsPermanent, toggleHighlightsPermanent,
     }}>
       {children}
     </ThemeContext.Provider>

@@ -13,24 +13,25 @@ function getSundayKey() {
   return `${y}-${m}-${d}`;
 }
 
-function parseStored(raw) {
+function parseStored(raw, permanent = false) {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed.weekKey === getSundayKey()) return new Set(parsed.habitIds);
+    if (permanent || parsed.weekKey === getSundayKey()) return new Set(parsed.habitIds);
   } catch {}
   return null;
 }
 
 // Fast path — reads only AsyncStorage. Used in Promise.all for instant render.
-export async function getHighlightsCache() {
+export async function getHighlightsCache(permanent = false) {
   const raw = await AsyncStorage.getItem(CACHE_KEY);
-  return parseStored(raw) ?? new Set();
+  return parseStored(raw, permanent) ?? new Set();
 }
 
 // Supabase-first with AsyncStorage fallback. Updates cache on success.
 // Called in background after initial render so cross-device changes sync in.
-export async function getHighlights() {
+// When permanent is true, skips the weekKey check and returns all stored IDs.
+export async function getHighlights(permanent = false) {
   const currentWeek = getSundayKey();
   try {
     const { data } = await supabase
@@ -40,15 +41,15 @@ export async function getHighlights() {
       .maybeSingle();
     if (data?.value) {
       const parsed = JSON.parse(data.value);
-      if (parsed.weekKey === currentWeek) {
+      if (permanent || parsed.weekKey === currentWeek) {
         AsyncStorage.setItem(CACHE_KEY, data.value);
         return new Set(parsed.habitIds);
       }
     }
-    AsyncStorage.removeItem(CACHE_KEY);
+    if (!permanent) AsyncStorage.removeItem(CACHE_KEY);
     return new Set();
   } catch {
-    return parseStored(await AsyncStorage.getItem(CACHE_KEY)) ?? new Set();
+    return parseStored(await AsyncStorage.getItem(CACHE_KEY), permanent) ?? new Set();
   }
 }
 
