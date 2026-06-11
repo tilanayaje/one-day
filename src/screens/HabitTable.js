@@ -3,12 +3,14 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, ScrollView, useWindowDimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import {
   getHabits, addHabit, deleteHabit, updateHabit,
   getWeekData, toggleCompletion, toggleBlock, reorderHabits,
 } from '../db/database';
+import { getHighlights, getHighlightsCache, toggleHighlight } from '../utils/highlights';
 import DesktopDayCell from '../components/habitTable/DesktopDayCell';
 import WeekNav        from '../components/habitTable/WeekNav';
 import FormModal      from '../components/habitTable/FormModal';
@@ -60,6 +62,7 @@ export default function HabitTable() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showHelp, setShowHelp]     = useState(false);
   const [toast, setToast]           = useState(null);
+  const [highlighted, setHighlighted] = useState(new Set());
   const weekOffsetRef               = React.useRef(weekOffset);
   weekOffsetRef.current             = weekOffset;
   const modalModeRef                = React.useRef('add');
@@ -81,9 +84,10 @@ export default function HabitTable() {
     const wk   = getWeekKeyWithOffset(offset);
     const prev = getWeekKeyWithOffset(offset - 1);
     if (showLoader) setData(d => ({ ...d, loading: true }));
-    const [h, thisD, prevD] = await Promise.all([
-      getHabits(), getWeekData(wk), getWeekData(prev),
+    const [h, thisD, prevD, hlCache] = await Promise.all([
+      getHabits(), getWeekData(wk), getWeekData(prev), getHighlightsCache(),
     ]);
+    setHighlighted(hlCache);
     setData({
       habits: h,
       thisChecks: thisD.checks,
@@ -93,6 +97,7 @@ export default function HabitTable() {
       todayIndex: offset === 0 ? new Date().getDay() : -1,
       isCurrentWeek: offset === 0,
     });
+    getHighlights().then(setHighlighted).catch(() => {});
   };
 
   const firstLoad = React.useRef(true);
@@ -110,6 +115,15 @@ export default function HabitTable() {
       setWeekOffset(route.params.weekOffset);
     }
   }, [route.params?.weekOffset]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('help_seen').then(val => {
+      if (!val) {
+        AsyncStorage.setItem('help_seen', '1');
+        setShowHelp(true);
+      }
+    });
+  }, []);
 
   // ── Check & block handlers ──────────────────────────
 
@@ -154,6 +168,13 @@ export default function HabitTable() {
       try { await toggleBlock(habitId, currentWeekKey, dayIndex, false); }
       catch (e) { showToast(e.message); }
     }
+  };
+
+  // ── Highlight handler ───────────────────────────────
+
+  const handleHighlight = async (habitId) => {
+    const newSet = await toggleHighlight(habitId, highlighted);
+    setHighlighted(newSet);
   };
 
   // ── CRUD handlers ───────────────────────────────────
@@ -255,6 +276,7 @@ export default function HabitTable() {
     isCurrentWeek, todayIndex, thisChecks, thisBlocks, prevChecks,
     getDayState, handleToggle, handleBlock, openEdit, count, theme, s,
     habitsLength: habits.length, editPastWeeks,
+    highlighted, handleHighlight,
   };
 
   // ── Mobile layout ───────────────────────────────────
@@ -427,6 +449,7 @@ function makeStyles(t, gridLines) {
     todayHeader:         { color: t.todayText },
     row:                 { flexDirection: 'row', borderBottomWidth: 1, borderColor: t.border, alignItems: 'center', minHeight: 60, borderLeftWidth: 3, borderLeftColor: 'transparent' },
     goalMet:             { borderLeftColor: '#f9e2af' },
+    highlightedRow:      { backgroundColor: 'rgba(249, 226, 175, 0.04)', borderBottomWidth: 0 },
     sumRow:              { backgroundColor: t.sumRow, borderTopWidth: 2, borderTopColor: t.border, marginTop: 2 },
     orderBtns:           { width: 40, alignItems: 'center', justifyContent: 'center', gap: 4 },
     orderBtn:            { fontSize: 11, color: t.orderBtn, paddingVertical: 2, fontFamily: 'Raleway_400Regular' },

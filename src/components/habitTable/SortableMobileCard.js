@@ -12,10 +12,13 @@ export default function SortableMobileCard({
   thisChecks, thisBlocks,
   getDayState, handleToggle, handleBlock, openEdit,
   count, theme, s, habitsLength, editPastWeeks,
+  highlighted, handleHighlight,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(habit.id),
   });
+
+  const isHighlighted = highlighted.has(habit.id);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -23,6 +26,7 @@ export default function SortableMobileCard({
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 999 : undefined,
     marginBottom: 10,
+    ...(isHighlighted ? { boxShadow: '0 0 0 1.5px #f9e2af, 0 0 16px 2px rgba(249,226,175,0.25)' } : {}),
   };
 
   const tw      = count(thisChecks, thisBlocks, habit.id);
@@ -32,14 +36,22 @@ export default function SortableMobileCard({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <View style={[s.mobileCard, habit.color && { borderLeftColor: habit.color }, goalMet && { borderLeftColor: '#f9e2af' }]}>
+      <View style={[
+        s.mobileCard,
+        !isHighlighted && habit.color && { borderLeftColor: habit.color },
+        !isHighlighted && goalMet && { borderLeftColor: '#f9e2af' },
+        isHighlighted && { borderLeftColor: '#f9e2af' },
+      ]}>
         <View style={s.mobileCardHeader}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(habit)}>
             <Text style={s.mobileHabitName} numberOfLines={2}>{habit.name}</Text>
             {habit.notes ? <Text style={s.mobileNotePreview} numberOfLines={1}>{habit.notes}</Text> : null}
           </TouchableOpacity>
           <View style={s.mobileCardRight}>
-            <Text style={[s.mobileCount, goalMet && { color: '#f9e2af' }]}>
+            <TouchableOpacity onPress={() => handleHighlight(habit.id)} style={{ padding: 4 }}>
+              <Text style={{ fontSize: 16, color: isHighlighted ? '#f9e2af' : theme.border, userSelect: 'none' }}>★</Text>
+            </TouchableOpacity>
+            <Text style={[s.mobileCount, (goalMet || isHighlighted) && { color: '#f9e2af' }]}>
               {tw}<Text style={s.mobileCountGoal}>/{habit.perweek}</Text>
             </Text>
             {!isCurrentWeek && (

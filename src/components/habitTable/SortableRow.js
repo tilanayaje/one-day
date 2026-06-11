@@ -11,16 +11,24 @@ export default function SortableRow({
   thisChecks, thisBlocks, prevChecks,
   getDayState, handleToggle, handleBlock, openEdit,
   count, theme, s, editPastWeeks,
+  highlighted, handleHighlight,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(habit.id),
   });
 
+  const isHighlighted = highlighted.has(habit.id);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 999 : undefined,
+    zIndex: isDragging ? 999 : isHighlighted ? 1 : undefined,
+    ...(isHighlighted ? {
+      outline: '1.5px solid #f9e2af',
+      outlineOffset: '-1px',
+      position: 'relative',
+    } : {}),
   };
 
   const tw      = count(thisChecks, thisBlocks, habit.id);
@@ -31,7 +39,13 @@ export default function SortableRow({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <View style={[s.row, habit.color && { borderLeftColor: habit.color }, goalMet && s.goalMet]}>
+      <View style={[
+        s.row,
+        !isHighlighted && habit.color && { borderLeftColor: habit.color },
+        !isHighlighted && goalMet && s.goalMet,
+        isHighlighted && { borderLeftColor: '#f9e2af' },
+        isHighlighted && s.highlightedRow,
+      ]}>
         {/* Drag handle — only on current week */}
         {isCurrentWeek ? (
           <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40 }}>
@@ -39,10 +53,15 @@ export default function SortableRow({
           </div>
         ) : <View style={s.orderBtns} />}
 
-        <TouchableOpacity style={s.habitCellBtn} onPress={() => openEdit(habit)}>
-          <Text style={s.habitCell} numberOfLines={2}>{habit.name}</Text>
-          {habit.notes ? <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text> : null}
-        </TouchableOpacity>
+        <View style={{ width: 240, flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 12, justifyContent: 'center' }} onPress={() => openEdit(habit)}>
+            <Text style={s.habitCell} numberOfLines={2}>{habit.name}</Text>
+            {habit.notes ? <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text> : null}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleHighlight(habit.id)} style={{ paddingRight: 8, paddingVertical: 12 }}>
+            <Text style={{ fontSize: 14, color: isHighlighted ? '#f9e2af' : theme.border, userSelect: 'none' }}>★</Text>
+          </TouchableOpacity>
+        </View>
 
         {DAYS.map((_, i) => (
           <DesktopDayCell
@@ -53,6 +72,7 @@ export default function SortableRow({
             isToday={i === todayIndex}
             isCurrentWeek={isCurrentWeek}
             editPastWeeks={editPastWeeks}
+            isHighlighted={isHighlighted}
             onToggle={() => handleToggle(habit.id, i)}
             onBlock={() => handleBlock(habit.id, i)}
             s={s}

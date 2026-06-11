@@ -37,6 +37,13 @@ export default function HelpModal({ visible, onClose, theme, isMobile, s }) {
                   <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>Drag the handle to reorder habits.</Text>
                 </View>
               </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Text style={{ fontSize: 22, fontFamily: 'Raleway_700Bold', color: '#f9e2af', width: 30, textAlign: 'center' }}>★</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: 15, fontFamily: 'Raleway_600SemiBold' }}>Highlight</Text>
+                  <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>Mark a habit with a gold glow. Resets every Sunday.</Text>
+                </View>
+              </View>
               <View style={{ height: 1, backgroundColor: theme.border }} />
               <Text style={{ color: theme.textSub, fontSize: 13, fontFamily: 'Raleway_400Regular', lineHeight: 20 }}>
                 Right-click (desktop) or long-press (mobile) to skip a day. Hit your weekly goal and the row highlights gold. Tap the habit name to edit or delete it.

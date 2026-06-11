@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 
-export default function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, editPastWeeks, onToggle, onBlock, s }) {
+export default function DesktopDayCell({ habitId, dayIndex, state, isToday, isCurrentWeek, editPastWeeks, isHighlighted, onToggle, onBlock, s }) {
   const ref = React.useRef(null);
   const scale = React.useRef(new Animated.Value(1)).current;
 
@@ -21,7 +21,7 @@ export default function DesktopDayCell({ habitId, dayIndex, state, isToday, isCu
   return (
     <TouchableOpacity
       ref={ref}
-      style={[s.dayCell, isToday && s.todayCell, (!isCurrentWeek && !editPastWeeks) && { opacity: 0.7 }]}
+      style={[s.dayCell, isToday && s.todayCell, isToday && isHighlighted && { backgroundColor: 'transparent', borderBottomWidth: 0 }, (!isCurrentWeek && !editPastWeeks) && { opacity: 0.7 }]}
       onPress={() => { pop(); onToggle(); }}
       disabled={!isCurrentWeek && !editPastWeeks}
     >
