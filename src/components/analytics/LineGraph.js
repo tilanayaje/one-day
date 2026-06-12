@@ -137,6 +137,7 @@ function CustomTooltip({ active, payload, label, habits, activeIds, useHabitColo
 // ── Main component ───────────────────────────────────────
 
 export default function LineGraph({ habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, useHabitColors, cumulative, theme, isMobile }) {
+  const [ready, setReady] = React.useState(false);
   const data = useMemo(() => buildChartData(
   habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, cumulative
 ), [habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, cumulative]);
@@ -152,46 +153,53 @@ export default function LineGraph({ habits, activeIds, allCompletions, allBlocke
   const activeHabits = habits.filter(h => activeIds.has(h.id));
 
   return (
-    <View style={{ height: isMobile ? 220 : 300, marginBottom: 8 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}
-            tickLine={false}
-            axisLine={{ stroke: theme.border }}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fill: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-          />
-          <Tooltip
-            content={<CustomTooltip habits={habits} activeIds={activeIds} useHabitColors={useHabitColors} theme={theme} />}
-            cursor={{ stroke: theme.border, strokeWidth: 1 }}
-          />
-          {activeHabits.map((habit, index) => {
-            const color = useHabitColors
-              ? (habit.color ?? CHART_COLORS[index % CHART_COLORS.length])
-              : CHART_COLORS[index % CHART_COLORS.length];
-            return (
-              <Line
-                key={habit.id}
-                type="monotone"
-                dataKey={String(habit.id)}
-                stroke={color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: color }}
-                isAnimationActive={false}
-              />
-            );
-          })}
-        </LineChart>
-      </ResponsiveContainer>
+    <View
+      style={{ height: isMobile ? 220 : 300, marginBottom: 8, minWidth: 0 }}
+      onLayout={(e) => { if (e.nativeEvent.layout.width > 0) setReady(true); }}
+    >
+      {ready ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}
+              tickLine={false}
+              axisLine={{ stroke: theme.border }}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{ fill: theme.textSub, fontSize: 10, fontFamily: 'Raleway_400Regular' }}
+              tickLine={false}
+              axisLine={false}
+              allowDecimals={false}
+            />
+            <Tooltip
+              content={<CustomTooltip habits={habits} activeIds={activeIds} useHabitColors={useHabitColors} theme={theme} />}
+              cursor={{ stroke: theme.border, strokeWidth: 1 }}
+            />
+            {activeHabits.map((habit, index) => {
+              const color = useHabitColors
+                ? (habit.color ?? CHART_COLORS[index % CHART_COLORS.length])
+                : CHART_COLORS[index % CHART_COLORS.length];
+              return (
+                <Line
+                  key={habit.id}
+                  type="monotone"
+                  dataKey={String(habit.id)}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: color }}
+                  isAnimationActive={false}
+                />
+              );
+            })}
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <View style={{ flex: 1 }} />
+      )}
     </View>
   );
 }

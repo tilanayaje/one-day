@@ -102,6 +102,7 @@ function CustomTooltip({ active, payload, label, habits, theme }) {
 }
 
 export default function StackedBarChart({ habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo, useHabitColors, theme, isMobile }) {
+  const [ready, setReady] = React.useState(false);
   const { data, bucketCount } = useMemo(
     () => buildData(habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo),
     [habits, activeIds, allCompletions, allBlocked, rangeKey, customFrom, customTo],
@@ -162,16 +163,23 @@ export default function StackedBarChart({ habits, activeIds, allCompletions, all
   }
 
   return (
-    <View style={{ height: chartHeight, marginBottom: 8 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
-          <CartesianGrid {...gridProps} />
-          <XAxis {...xAxisProps} interval="preserveStartEnd" />
-          <YAxis {...yAxisProps} />
-          {tooltipEl}
-          {bars}
-        </BarChart>
-      </ResponsiveContainer>
+    <View
+      style={{ height: chartHeight, marginBottom: 8, minWidth: 0 }}
+      onLayout={(e) => { if (e.nativeEvent.layout.width > 0) setReady(true); }}
+    >
+      {ready ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
+            <CartesianGrid {...gridProps} />
+            <XAxis {...xAxisProps} interval="preserveStartEnd" />
+            <YAxis {...yAxisProps} />
+            {tooltipEl}
+            {bars}
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <View style={{ flex: 1 }} />
+      )}
     </View>
   );
 }

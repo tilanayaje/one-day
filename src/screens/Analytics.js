@@ -174,6 +174,12 @@ export default function Analytics() {
     }
   }, [chartMode]);
 
+  useEffect(() => {
+    if (isMobile && chartMode === 'timeline') {
+      setChartMode('line');
+    }
+  }, [isMobile]);
+
   if (loading) return <View style={s.center}><Text style={s.muted}>Loading...</Text></View>;
   if (habits.length === 0) return <View style={s.center}><Text style={s.muted}>No habits yet.</Text></View>;
 
@@ -205,7 +211,7 @@ export default function Analytics() {
           theme={theme} isMobile={isMobile}
         />
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-          {[{ key: 'line', label: 'Line' }, { key: 'stacked', label: 'Stacked' }, { key: 'timeline', label: 'Timeline' }].map(({ key, label }) => {
+          {[{ key: 'line', label: 'Line' }, { key: 'stacked', label: 'Stacked' }, { key: 'timeline', label: 'Timeline' }].filter(({ key }) => !(isMobile && key === 'timeline')).map(({ key, label }) => {
             const active = chartMode === key;
             return (
               <TouchableOpacity
