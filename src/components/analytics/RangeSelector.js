@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 
 const PRESETS = [
-  { label: 'Last Week',    key: 'week' },
-  { label: 'Last Month',   key: 'month' },
-  { label: 'Last 6 Mo',   key: '6months' },
-  { label: 'Last 12 Mo',  key: '12months' },
-  { label: 'All Time',    key: 'all' },
-  { label: 'Custom',      key: 'custom' },
+  { label: 'Last Week',    key: 'week',     days: 7 },
+  { label: 'Last Month',   key: 'month',    days: 30 },
+  { label: 'Last 6 Mo',   key: '6months',  days: 180 },
+  { label: 'Last 12 Mo',  key: '12months', days: 365 },
+  { label: 'All Time',    key: 'all',      days: null },
+  { label: 'Custom',      key: 'custom',   days: null },
 ];
 
 export function resolveRange(rangeKey, customFrom, customTo) {
@@ -39,21 +39,31 @@ export function resolveRange(rangeKey, customFrom, customTo) {
   return { from, to: today };
 }
 
-export default function RangeSelector({ rangeKey, onRangeChange, customFrom, customTo, onCustomFromChange, onCustomToChange, theme }) {
+export default function RangeSelector({ rangeKey, onRangeChange, customFrom, customTo, onCustomFromChange, onCustomToChange, minDate, chartMode, theme }) {
+  const minTime = minDate ? new Date(minDate + 'T00:00:00').getTime() : null;
+
   return (
     <View style={{ marginBottom: 14 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
         {PRESETS.map(p => {
           const active = rangeKey === p.key;
+          let disabled = false;
+          if (p.key === 'all' && chartMode === 'timeline') {
+            disabled = true;
+          } else if (minTime !== null && p.days !== null) {
+            const rangeFrom = Date.now() - p.days * 86400000;
+            disabled = minTime > rangeFrom;
+          }
           return (
             <TouchableOpacity
               key={p.key}
-              onPress={() => onRangeChange(p.key)}
+              onPress={() => !disabled && onRangeChange(p.key)}
               style={{
                 paddingHorizontal: 12, paddingVertical: 6,
                 borderRadius: 8, borderWidth: 1,
                 borderColor: active ? theme.accent : theme.border,
                 backgroundColor: active ? theme.accent + '1a' : 'transparent',
+                opacity: disabled ? 0.35 : 1,
               }}
             >
               <Text style={{

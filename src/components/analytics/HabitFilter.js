@@ -8,7 +8,7 @@ export const CHART_COLORS = [
   '#5f27cd', '#00d2d3', '#ff9f43', '#10ac84', '#ee5a24',
 ];
 
-export default function HabitFilter({ habits, activeIds, onToggle, useHabitColors, onToggleColorMode, cumulative, onToggleCumulative, theme, isMobile }) {
+export default function HabitFilter({ habits, activeIds, onToggle, useHabitColors, onToggleColorMode, cumulative, onToggleCumulative, showCumulative = true, theme, isMobile }) {
   return (
     <View style={{ marginBottom: 14 }}>
       {/* Color mode toggle */}
@@ -31,23 +31,25 @@ export default function HabitFilter({ habits, activeIds, onToggle, useHabitColor
       </View>
 
       {/* Cumulative mode toggle */}
+      {showCumulative && (
         <View style={{
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 12,
+          flexDirection: 'row', alignItems: 'center',
+          justifyContent: 'space-between', marginBottom: 12,
         }}>
-        <Text style={{
+          <Text style={{
             fontSize: 10, fontFamily: 'Raleway_600SemiBold',
             color: theme.textSub, letterSpacing: 1.2, textTransform: 'uppercase',
-        }}>
+          }}>
             {cumulative ? 'Cumulative' : 'Frequency'}
-        </Text>
-        <Switch
+          </Text>
+          <Switch
             value={cumulative}
             onValueChange={onToggleCumulative}
             trackColor={{ false: theme.border, true: theme.accent }}
             thumbColor={theme.surface}
-        />
+          />
         </View>
+      )}
 
       {/* Habit toggles */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

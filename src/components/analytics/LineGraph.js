@@ -186,6 +186,7 @@ export default function LineGraph({ habits, activeIds, allCompletions, allBlocke
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4, fill: color }}
+                isAnimationActive={false}
               />
             );
           })}

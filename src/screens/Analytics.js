@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -9,6 +9,10 @@ import OverallSummary from '../components/analytics/OverallSummary';
 import LineGraph from '../components/analytics/LineGraph';
 import RangeSelector from '../components/analytics/RangeSelector';
 import HabitFilter, { CHART_COLORS } from '../components/analytics/HabitFilter';
+import HabitRadarChart from '../components/analytics/RadarChart';
+import HabitComparison from '../components/analytics/HabitComparison';
+import StackedBarChart from '../components/analytics/StackedBarChart';
+import StreakTimeline from '../components/analytics/StreakTimeline';
 
 const MOBILE_BREAKPOINT = 768;
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -127,6 +131,8 @@ export default function Analytics() {
   const [useHabitColors, setUseHabitColors] = useState(false);
 
   const [cumulative, setCumulative] = useState(false);
+  const [chartMode, setChartMode] = useState('line');
+  const [comparisonOpen, setComparisonOpen] = useState(false);
 
   const navigateToWeek = (weekKey) => {
     const target = new Date(weekKey + 'T00:00:00');
@@ -157,6 +163,17 @@ export default function Analytics() {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
+  const minDate = useMemo(() => {
+    const keys = Object.keys(allCompletions).sort();
+    return keys.length > 0 ? keys[0] : null;
+  }, [allCompletions]);
+
+  useEffect(() => {
+    if (chartMode === 'timeline' && rangeKey === 'all') {
+      setRangeKey('12months');
+    }
+  }, [chartMode]);
+
   if (loading) return <View style={s.center}><Text style={s.muted}>Loading...</Text></View>;
   if (habits.length === 0) return <View style={s.center}><Text style={s.muted}>No habits yet.</Text></View>;
 
@@ -176,22 +193,84 @@ export default function Analytics() {
           rangeKey={rangeKey} onRangeChange={setRangeKey}
           customFrom={customFrom} customTo={customTo}
           onCustomFromChange={setCustomFrom} onCustomToChange={setCustomTo}
+          minDate={minDate}
+          chartMode={chartMode}
           theme={theme}
         />
         <HabitFilter
           habits={habits} activeIds={activeIds} onToggle={toggleHabit}
           useHabitColors={useHabitColors} onToggleColorMode={() => setUseHabitColors(v => !v)}
           cumulative={cumulative} onToggleCumulative={() => setCumulative(v => !v)}
+          showCumulative={chartMode === 'line'}
           theme={theme} isMobile={isMobile}
         />
-        <LineGraph
-          habits={habits} activeIds={activeIds}
-          allCompletions={allCompletions} allBlocked={allBlocked}
-          rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
-          useHabitColors={useHabitColors} cumulative={cumulative}
-          theme={theme} isMobile={isMobile}
-        />
-      </View>      
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+          {[{ key: 'line', label: 'Line' }, { key: 'stacked', label: 'Stacked' }, { key: 'timeline', label: 'Timeline' }].map(({ key, label }) => {
+            const active = chartMode === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setChartMode(key)}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 6,
+                  borderRadius: 8, borderWidth: 1,
+                  borderColor: active ? theme.accent : theme.border,
+                  backgroundColor: active ? theme.accent + '1a' : 'transparent',
+                }}
+              >
+                <Text style={{ fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: active ? theme.accent : theme.textSub }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {chartMode === 'line' && (
+          <LineGraph
+            habits={habits} activeIds={activeIds}
+            allCompletions={allCompletions} allBlocked={allBlocked}
+            rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+            useHabitColors={useHabitColors} cumulative={cumulative}
+            theme={theme} isMobile={isMobile}
+          />
+        )}
+        {chartMode === 'stacked' && (
+          <StackedBarChart
+            habits={habits} activeIds={activeIds}
+            allCompletions={allCompletions} allBlocked={allBlocked}
+            rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+            useHabitColors={useHabitColors}
+            theme={theme} isMobile={isMobile}
+          />
+        )}
+        {chartMode === 'timeline' && (
+          <StreakTimeline
+            habits={habits} activeIds={activeIds}
+            allCompletions={allCompletions} allBlocked={allBlocked}
+            rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+            useHabitColors={useHabitColors}
+            theme={theme} isMobile={isMobile}
+          />
+        )}
+      </View>
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.cardHeader}
+          onPress={() => setComparisonOpen(v => !v)}
+          activeOpacity={0.7}
+        >
+          <Text style={s.habitName}>Habit Comparison</Text>
+          <Text style={s.chevron}>{comparisonOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        {comparisonOpen && (
+          <View style={s.cardBody}>
+            <HabitComparison
+              habits={habits} allCompletions={allCompletions}
+              allBlocked={allBlocked} theme={theme} isMobile={isMobile}
+            />
+          </View>
+        )}
+      </View>
       <Text style={s.sectionLabel}>Per Habit</Text>
 
       {habits.map(habit => {
@@ -235,6 +314,7 @@ export default function Analytics() {
                       <View style={s.datePill}><Text style={s.dateLabel}>Most recent</Text><Text style={s.dateValue}>{fmtDate(stats.lastCheck)}</Text></View>
                       <View style={s.datePill}><Text style={s.dateLabel}>Weeks tracked</Text><Text style={s.dateValue}>{stats.weeksTracked}</Text></View>
                     </View>
+                    <HabitRadarChart habit={habit} allCompletions={allCompletions} allBlocked={allBlocked} theme={theme} isMobile={isMobile} />
                     <BarChart data={stats.chartData} goal={habit.perweek} theme={theme} isMobile={isMobile} onWeekPress={navigateToWeek} />
                   </>
                 )}
