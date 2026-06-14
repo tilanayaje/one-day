@@ -24,29 +24,31 @@ A habit tracking app that gives you structure, accountability, and data. Built f
   <em>Analytics view (Early development)</em>
 </p>
 
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/270b7257-60e6-429d-af2d-19ede347a443"  alt="Habit Comparison" width="700" >
+  <br>
+  <em>Habit comparison</em>
+</p>
+
 ---
 
 ### Features
-
-- **Weekly habit grid** —checks per-task/habit, color grouping, notes, and reordering
-- **Check / Skip / Miss system** — right-click (desktop) or long-press (mobile) to intentionally skip a day, excluded from all stats
-- **Weekly navigation** — browse past weeks
-- **Analytics** — per-habit consistency rates, streak tracking, bar charts, browse by week
-- **Compound Map** — 365-day heatmap 
-- **Profile & Insights** — lifetime stats, perfect streak, consistency score, best/worst day with rates, active days tracking
-- **Guest mode** — try the app instantly with pre-loaded demo data, no sign-in required
-- **Data management** — offers exporting/importing JSON backups, reset all data
-- **Responsive** — Distinct desktop grid layout and mobile card layout from one codebase
-- **Dark mode** — Dark and Light modes offered
-- **Google sign-in** — persistent cloud sync via Supabase with RLS
+- **Habit grid** — weekly check/skip/miss tracking, color coding, drag-and-drop reordering, notes
+- **Analytics** — consistency rates, streaks, radar charts, trend graphs (line/stacked/timeline), habit comparison
+- **Compound Map** — 365-day activity heatmap
+- **Insights** — best/worst day, most/least consistent habit, perfect streak, lifetime stats
+- **Highlighting** — star habits to prioritize for the week, auto-resets Sunday
+- **Guest mode** — 2 years of demo data, no sign-in needed
+- **Preferences** — grid lines, edit past weeks, permanent highlights, dark/light mode
+- **Responsive** — desktop grid and mobile card layouts from one codebase
+- **Google sign-in** — cloud sync via Supabase with row-level security
 
 ### Tech Stack
-
 React Native · Expo SDK 56 · Supabase (Postgres + Auth) · React Navigation v7 · Vercel
 
 ---
 
 ### Try it
-
 **Web:** [one-day-kappa.vercel.app](https://one-day-kappa.vercel.app)
 Sign in as a guest to see 3 weeks of progression
