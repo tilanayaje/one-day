@@ -68,9 +68,12 @@ export default function StreakTimeline({ habits, activeIds, allCompletions, allB
   const { from, totalDays } = useMemo(() => {
     const { from: f, to: t } = resolveRange(rangeKey, customFrom, customTo);
     f.setHours(0, 0, 0, 0);
-    const effectiveFrom = (rangeKey === 'all' && minDate)
+    
+    // Clamp from to earliest actual data
+    const effectiveFrom = minDate
       ? new Date(Math.max(f.getTime(), new Date(minDate + 'T00:00:00').getTime()))
       : f;
+    
     return { from: effectiveFrom, totalDays: Math.max(1, Math.ceil((t - effectiveFrom) / 86400000)) };
   }, [rangeKey, customFrom, customTo, minDate]);
 

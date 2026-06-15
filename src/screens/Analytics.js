@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { getHabits, getAllCompletions } from '../db/database';
 import InsightCard from '../components/shared/InsightCard';
@@ -163,6 +164,12 @@ export default function Analytics() {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
+  useEffect(() => {
+    AsyncStorage.getItem('useHabitColors').then(val => {
+      if (val !== null) setUseHabitColors(val === 'true');
+    });
+  }, []);
+
   const minDate = useMemo(() => {
     const keys = Object.keys(allCompletions).sort();
     return keys.length > 0 ? keys[0] : null;
@@ -205,7 +212,7 @@ export default function Analytics() {
         />
         <HabitFilter
           habits={habits} activeIds={activeIds} onToggle={toggleHabit}
-          useHabitColors={useHabitColors} onToggleColorMode={() => setUseHabitColors(v => !v)}
+          useHabitColors={useHabitColors} onToggleColorMode={() => { const next = !useHabitColors; setUseHabitColors(next); AsyncStorage.setItem('useHabitColors', String(next)); }}
           cumulative={cumulative} onToggleCumulative={() => setCumulative(v => !v)}
           showCumulative={chartMode === 'line'}
           theme={theme} isMobile={isMobile}
