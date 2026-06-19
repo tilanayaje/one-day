@@ -263,6 +263,7 @@ export default function Analytics() {
             rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
             useHabitColors={useHabitColors}
             theme={theme} isMobile={isMobile}
+            minDate={minDate}
           />
         )}
       </View>

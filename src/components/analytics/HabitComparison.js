@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -87,26 +87,28 @@ function HabitPicker({ label, habits, selectedId, onSelect, theme }) {
           borderColor: theme.border, zIndex: 100,
           shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8,
         }}>
-          {habits.map((h, i) => (
-            <TouchableOpacity
-              key={h.id}
-              onPress={() => { onSelect(h.id); setOpen(false); }}
-              activeOpacity={0.7}
-              style={{
-                padding: 10,
-                borderBottomWidth: i < habits.length - 1 ? 1 : 0,
-                borderBottomColor: theme.border,
-                backgroundColor: h.id === selectedId ? '#f9e2af22' : 'transparent',
-              }}
-            >
-              <Text style={{
-                fontSize: 13, fontFamily: 'Raleway_400Regular',
-                color: h.id === selectedId ? '#f9e2af' : theme.text,
-              }} numberOfLines={1}>
-                {h.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView style={{ maxHeight: 240 }} nestedScrollEnabled showsVerticalScrollIndicator>
+            {habits.map((h, i) => (
+              <TouchableOpacity
+                key={h.id}
+                onPress={() => { onSelect(h.id); setOpen(false); }}
+                activeOpacity={0.7}
+                style={{
+                  padding: 10,
+                  borderBottomWidth: i < habits.length - 1 ? 1 : 0,
+                  borderBottomColor: theme.border,
+                  backgroundColor: h.id === selectedId ? '#f9e2af22' : 'transparent',
+                }}
+              >
+                <Text style={{
+                  fontSize: 13, fontFamily: 'Raleway_400Regular',
+                  color: h.id === selectedId ? '#f9e2af' : theme.text,
+                }} numberOfLines={1}>
+                  {h.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>

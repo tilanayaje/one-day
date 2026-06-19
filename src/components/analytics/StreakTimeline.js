@@ -161,8 +161,8 @@ export default function StreakTimeline({ habits, activeIds, allCompletions, allB
                     key={si}
                     onMouseEnter={(e) => setTooltip({
                       label: `${fmtDate(s.startDate)} → ${fmtDate(s.endDate)}`,
-                      x: e.nativeEvent.pageX,
-                      y: e.nativeEvent.pageY,
+                      x: e.nativeEvent.clientX,
+                      y: e.nativeEvent.clientY,
                     })}
                     onMouseLeave={() => setTooltip(null)}
                     style={{
@@ -205,7 +205,9 @@ export default function StreakTimeline({ habits, activeIds, allCompletions, allB
     </View>
     {tooltip && (
       <View style={{
-        position: 'fixed', left: tooltip.x - 60, top: tooltip.y - 56,
+        position: 'fixed',
+        left: Math.min(Math.max(tooltip.x - 60, 8), (typeof window !== 'undefined' ? window.innerWidth : 800) - 168),
+        top: tooltip.y - 56 < 8 ? tooltip.y + 16 : tooltip.y - 56,
         backgroundColor: theme.surface, borderRadius: 8,
         paddingHorizontal: 12, paddingVertical: 8,
         borderWidth: 1, borderColor: theme.border,
