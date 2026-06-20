@@ -14,14 +14,36 @@ import HabitRadarChart from '../components/analytics/RadarChart';
 import HabitComparison from '../components/analytics/HabitComparison';
 import StackedBarChart from '../components/analytics/StackedBarChart';
 import StreakTimeline from '../components/analytics/StreakTimeline';
+import CompoundHero from '../components/analytics/CompoundHero';
+import MomentumStrip from '../components/analytics/MomentumStrip';
 
 const MOBILE_BREAKPOINT = 768;
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const BUILT_DAYS = 66;
 
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Cheap count of completed (checked, non-future) days for a single habit across all history.
+// Does not reset on missed weeks — only ever climbs. Used for the 66-day bar on collapsed rows.
+function computeTotalChecks(habitId, allCompletions) {
+  const now = new Date();
+  let total = 0;
+  for (const [wk, habitsInWeek] of Object.entries(allCompletions)) {
+    const days = habitsInWeek[habitId];
+    if (!days) continue;
+    const weekStart = new Date(wk + 'T00:00:00');
+    for (let d = 0; d < 7; d++) {
+      if (!days[d]) continue;
+      const date = new Date(weekStart);
+      date.setDate(date.getDate() + d);
+      if (date <= now) total++;
+    }
+  }
+  return total;
 }
 
 function computeStats(habit, allCompletions, allBlocked = {}) {
@@ -134,6 +156,8 @@ export default function Analytics() {
   const [cumulative, setCumulative] = useState(false);
   const [chartMode, setChartMode] = useState('line');
   const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [habitsOpen, setHabitsOpen] = useState(false);
 
   const navigateToWeek = (weekKey) => {
     const target = new Date(weekKey + 'T00:00:00');
@@ -175,6 +199,20 @@ export default function Analytics() {
     return keys.length > 0 ? keys[0] : null;
   }, [allCompletions]);
 
+  // Pre-compute cumulative completed days per habit so bars render without expansion.
+  const habitTotals = useMemo(() => {
+    const result = {};
+    for (const habit of habits) {
+      result[habit.id] = computeTotalChecks(habit.id, allCompletions);
+    }
+    return result;
+  }, [habits, allCompletions]);
+
+  const builtCount = useMemo(
+    () => habits.filter(h => (habitTotals[h.id] ?? 0) >= BUILT_DAYS).length,
+    [habits, habitTotals]
+  );
+
   useEffect(() => {
     if (chartMode === 'timeline' && rangeKey === 'all') {
       setRangeKey('12months');
@@ -192,104 +230,39 @@ export default function Analytics() {
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-      <OverallSummary
+      <MomentumStrip
         habits={habits} allCompletions={allCompletions}
         allBlocked={allBlocked} theme={theme} isMobile={isMobile}
       />
-      <View style={{
-        backgroundColor: theme.surface, borderRadius: 16,
-        padding: isMobile ? 16 : 24, marginBottom: 20,
-        borderWidth: 1, borderColor: theme.border,
-      }}>
-        <Text style={s.sectionLabel}>Trends</Text>
-        <RangeSelector
-          rangeKey={rangeKey} onRangeChange={setRangeKey}
-          customFrom={customFrom} customTo={customTo}
-          onCustomFromChange={setCustomFrom} onCustomToChange={setCustomTo}
-          minDate={minDate}
-          chartMode={chartMode}
-          theme={theme}
-        />
-        <HabitFilter
-          habits={habits} activeIds={activeIds} onToggle={toggleHabit}
-          useHabitColors={useHabitColors} onToggleColorMode={() => { const next = !useHabitColors; setUseHabitColors(next); AsyncStorage.setItem('useHabitColors', String(next)); }}
-          cumulative={cumulative} onToggleCumulative={() => setCumulative(v => !v)}
-          showCumulative={chartMode === 'line'}
-          theme={theme} isMobile={isMobile}
-        />
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-          {[{ key: 'line', label: 'Line' }, { key: 'stacked', label: 'Stacked' }, { key: 'timeline', label: 'Timeline' }].filter(({ key }) => !(isMobile && key === 'timeline')).map(({ key, label }) => {
-            const active = chartMode === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                onPress={() => setChartMode(key)}
-                style={{
-                  paddingHorizontal: 12, paddingVertical: 6,
-                  borderRadius: 8, borderWidth: 1,
-                  borderColor: active ? theme.accent : theme.border,
-                  backgroundColor: active ? theme.accent + '1a' : 'transparent',
-                }}
-              >
-                <Text style={{ fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: active ? theme.accent : theme.textSub }}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        {chartMode === 'line' && (
-          <LineGraph
-            habits={habits} activeIds={activeIds}
-            allCompletions={allCompletions} allBlocked={allBlocked}
-            rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
-            useHabitColors={useHabitColors} cumulative={cumulative}
-            theme={theme} isMobile={isMobile}
-          />
-        )}
-        {chartMode === 'stacked' && (
-          <StackedBarChart
-            habits={habits} activeIds={activeIds}
-            allCompletions={allCompletions} allBlocked={allBlocked}
-            rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
-            useHabitColors={useHabitColors}
-            theme={theme} isMobile={isMobile}
-          />
-        )}
-        {chartMode === 'timeline' && (
-          <StreakTimeline
-            habits={habits} activeIds={activeIds}
-            allCompletions={allCompletions} allBlocked={allBlocked}
-            rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
-            useHabitColors={useHabitColors}
-            theme={theme} isMobile={isMobile}
-            minDate={minDate}
-          />
-        )}
-      </View>
+      <CompoundHero
+        habits={habits} allCompletions={allCompletions}
+        allBlocked={allBlocked} minDate={minDate}
+        useHabitColors={useHabitColors}
+        theme={theme} isMobile={isMobile}
+      />
+
+      {/* Habits collapsible — collapsed by default */}
       <View style={s.card}>
         <TouchableOpacity
           style={s.cardHeader}
-          onPress={() => setComparisonOpen(v => !v)}
+          onPress={() => setHabitsOpen(v => !v)}
           activeOpacity={0.7}
         >
-          <Text style={s.habitName}>Habit Comparison</Text>
-          <Text style={s.chevron}>{comparisonOpen ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-        {comparisonOpen && (
-          <View style={s.cardBody}>
-            <HabitComparison
-              habits={habits} allCompletions={allCompletions}
-              allBlocked={allBlocked} theme={theme} isMobile={isMobile}
-            />
+          <View style={{ flex: 1 }}>
+            <Text style={s.habitName}>Habits</Text>
+            <Text style={s.habitMeta}>{builtCount} of {habits.length} Built</Text>
           </View>
-        )}
+          <Text style={s.chevron}>{habitsOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={s.sectionLabel}>Per Habit</Text>
 
-      {habits.map(habit => {
+      {habitsOpen && habits.map(habit => {
         const isOpen = expanded === habit.id;
         const stats  = isOpen ? computeStats(habit, allCompletions, allBlocked) : null;
+        const totalCompleted = habitTotals[habit.id] ?? 0;
+        const streakDays = Math.min(totalCompleted, BUILT_DAYS);
+        const built = totalCompleted >= BUILT_DAYS;
+        const fillPct = (streakDays / BUILT_DAYS) * 100;
 
         return (
           <View key={habit.id} style={[s.card, habit.color && { borderLeftWidth: 3, borderLeftColor: habit.color }]}>
@@ -301,6 +274,20 @@ export default function Analytics() {
               <View style={{ flex: 1 }}>
                 <Text style={s.habitName}>{habit.name}</Text>
                 <Text style={s.habitMeta}>Goal: {habit.perweek}x / week</Text>
+                <View style={{ marginTop: 8, marginRight: 8 }} pointerEvents="none">
+                  <Text style={s.barLabel}>
+                    {built ? 'Built ✓' : `${streakDays} / ${BUILT_DAYS} reps`}
+                  </Text>
+                  <View style={s.barTrack}>
+                    <View style={[
+                      s.barFill,
+                      {
+                        width: `${fillPct}%`,
+                        backgroundColor: built ? '#a6e3a1' : theme.accent,
+                      },
+                    ]} />
+                  </View>
+                </View>
               </View>
               <Text style={s.chevron}>{isOpen ? '▲' : '▼'}</Text>
             </TouchableOpacity>
@@ -337,6 +324,122 @@ export default function Analytics() {
           </View>
         );
       })}
+      {habitsOpen && (
+        <Text style={s.footnote}>
+          66 days = average to automaticity; individual range varies widely.
+        </Text>
+      )}
+
+      {/* More metrics — collapsed by default */}
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.cardHeader}
+          onPress={() => setMoreOpen(v => !v)}
+          activeOpacity={0.7}
+        >
+          <Text style={s.habitName}>More metrics</Text>
+          <Text style={s.chevron}>{moreOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+
+        {moreOpen && (
+          <View style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
+            {/* Overall summary (moved here from top of screen) */}
+            <View style={{ borderBottomWidth: 1, borderBottomColor: theme.border }}>
+              <OverallSummary
+                habits={habits} allCompletions={allCompletions}
+                allBlocked={allBlocked} theme={theme} isMobile={isMobile}
+              />
+            </View>
+            {/* Trends section */}
+            <View style={{ padding: isMobile ? 16 : 24, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+              <Text style={s.sectionLabel}>Trends</Text>
+              <RangeSelector
+                rangeKey={rangeKey} onRangeChange={setRangeKey}
+                customFrom={customFrom} customTo={customTo}
+                onCustomFromChange={setCustomFrom} onCustomToChange={setCustomTo}
+                minDate={minDate}
+                chartMode={chartMode}
+                theme={theme}
+              />
+              <HabitFilter
+                habits={habits} activeIds={activeIds} onToggle={toggleHabit}
+                useHabitColors={useHabitColors} onToggleColorMode={() => { const next = !useHabitColors; setUseHabitColors(next); AsyncStorage.setItem('useHabitColors', String(next)); }}
+                cumulative={cumulative} onToggleCumulative={() => setCumulative(v => !v)}
+                showCumulative={chartMode === 'line'}
+                theme={theme} isMobile={isMobile}
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {[{ key: 'line', label: 'Line' }, { key: 'stacked', label: 'Stacked' }, { key: 'timeline', label: 'Timeline' }].filter(({ key }) => !(isMobile && key === 'timeline')).map(({ key, label }) => {
+                  const active = chartMode === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => setChartMode(key)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 6,
+                        borderRadius: 8, borderWidth: 1,
+                        borderColor: active ? theme.accent : theme.border,
+                        backgroundColor: active ? theme.accent + '1a' : 'transparent',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontFamily: 'Raleway_600SemiBold', color: active ? theme.accent : theme.textSub }}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {chartMode === 'line' && (
+                <LineGraph
+                  habits={habits} activeIds={activeIds}
+                  allCompletions={allCompletions} allBlocked={allBlocked}
+                  rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+                  useHabitColors={useHabitColors} cumulative={cumulative}
+                  theme={theme} isMobile={isMobile}
+                />
+              )}
+              {chartMode === 'stacked' && (
+                <StackedBarChart
+                  habits={habits} activeIds={activeIds}
+                  allCompletions={allCompletions} allBlocked={allBlocked}
+                  rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+                  useHabitColors={useHabitColors}
+                  theme={theme} isMobile={isMobile}
+                />
+              )}
+              {chartMode === 'timeline' && (
+                <StreakTimeline
+                  habits={habits} activeIds={activeIds}
+                  allCompletions={allCompletions} allBlocked={allBlocked}
+                  rangeKey={rangeKey} customFrom={customFrom} customTo={customTo}
+                  useHabitColors={useHabitColors}
+                  theme={theme} isMobile={isMobile}
+                  minDate={minDate}
+                />
+              )}
+            </View>
+
+            {/* Habit Comparison section */}
+            <TouchableOpacity
+              style={s.cardHeader}
+              onPress={() => setComparisonOpen(v => !v)}
+              activeOpacity={0.7}
+            >
+              <Text style={s.habitName}>Habit Comparison</Text>
+              <Text style={s.chevron}>{comparisonOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {comparisonOpen && (
+              <View style={s.cardBody}>
+                <HabitComparison
+                  habits={habits} allCompletions={allCompletions}
+                  allBlocked={allBlocked} theme={theme} isMobile={isMobile}
+                />
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -359,5 +462,9 @@ function makeStyles(t, mobile) {
     dateLabel:    { fontSize: 10, fontFamily: 'Raleway_600SemiBold', color: t.textSub, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
     dateValue:    { fontSize: 14, fontFamily: 'Raleway_600SemiBold', color: t.text },
     muted:        { color: t.textSub, fontFamily: 'Raleway_400Regular', fontSize: 15 },
+    barLabel:     { fontSize: 10, fontFamily: 'Raleway_600SemiBold', color: t.textSub, marginBottom: 4 },
+    barTrack:     { height: 4, borderRadius: 2, backgroundColor: t.border, overflow: 'hidden' },
+    barFill:      { height: '100%', borderRadius: 2 },
+    footnote:     { fontSize: 10, fontFamily: 'Raleway_400Regular', color: t.textSub, textAlign: 'center', marginTop: 4, marginBottom: 16, opacity: 0.7, paddingHorizontal: 8 },
   });
 }
