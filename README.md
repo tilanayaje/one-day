@@ -51,4 +51,4 @@ React Native · Expo SDK 56 · Supabase (Postgres + Auth) · React Navigation v7
 
 ### Try it
 **Web:** [one-day-kappa.vercel.app](https://one-day-kappa.vercel.app)
-Sign in as a guest to see 3 weeks of progression
+Sign in as a guest to see 2 years of progression
