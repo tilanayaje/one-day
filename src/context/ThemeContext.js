@@ -6,13 +6,16 @@ import { supabase } from '../db/supabase';
 const ThemeContext = createContext();
 
 const light = {
-  bg: '#ffffff', surface: '#f7f7f7', border: '#e0e0e0',
-  text: '#1a1a1a', textSub: '#6b6b6b',
-  accent: '#1a73e8', accentText: '#ffffff',
-  checkMark: '#1a1a1a', delete: '#d93025', error: '#d93025',
-  today: '#e8f0fe', todayText: '#1a73e8',
-  sumRow: '#f0f0f0', orderBtn: '#999999',
+  bg: '#ece3d0', surface: '#faf6ec', border: '#d4c4a8',
+  text: '#2e2820', textSub: '#7a6f5d',
+  accent: '#1a6fd4', accentText: '#ffffff',
+  checkMark: '#2e2820', delete: '#c0392b', error: '#c0392b',
+  today: '#e3d9c0', todayText: '#1a6fd4',
+  sumRow: '#e6dcc8', orderBtn: '#a89878',
   rowColorOpacity: 'bb',
+  gold: '#b8860b', success: '#3d8b40',
+  accentSoft: '#1a6fd41f', successSoft: '#3d8b401f',
+  labelStrong: '#5c5040',
 };
 
 const dark = {
@@ -23,6 +26,9 @@ const dark = {
   today: '#1e1e3a', todayText: '#89b4fa',
   sumRow: '#0e0e14', orderBtn: '#585b70',
   rowColorOpacity: '2a',
+  gold: '#f9e2af', success: '#a6e3a1',
+  accentSoft: '#89b4fa1a', successSoft: '#a6e3a11a',
+  labelStrong: '#6c7086',
 };
 
 export function ThemeProvider({ children }) {

@@ -337,7 +337,9 @@ export default function Analytics() {
           onPress={() => setMoreOpen(v => !v)}
           activeOpacity={0.7}
         >
-          <Text style={s.habitName}>More metrics</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.habitName}>More metrics</Text>
+          </View>
           <Text style={s.chevron}>{moreOpen ? '▲' : '▼'}</Text>
         </TouchableOpacity>
 
@@ -425,7 +427,9 @@ export default function Analytics() {
               onPress={() => setComparisonOpen(v => !v)}
               activeOpacity={0.7}
             >
-              <Text style={s.habitName}>Habit Comparison</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.habitName}>Habit Comparison</Text>
+              </View>
               <Text style={s.chevron}>{comparisonOpen ? '▲' : '▼'}</Text>
             </TouchableOpacity>
             {comparisonOpen && (

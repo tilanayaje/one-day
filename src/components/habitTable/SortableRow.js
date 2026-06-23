@@ -25,7 +25,7 @@ export default function SortableRow({
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 999 : isHighlighted ? 1 : undefined,
     ...(isHighlighted ? {
-      outline: '1.5px solid #f9e2af',
+      outline: `1.5px solid ${theme.gold}`,
       outlineOffset: '-1px',
       position: 'relative',
     } : {}),
@@ -43,7 +43,7 @@ export default function SortableRow({
         s.row,
         !isHighlighted && habit.color && { borderLeftColor: habit.color },
         !isHighlighted && goalMet && s.goalMet,
-        isHighlighted && { borderLeftColor: '#f9e2af' },
+        isHighlighted && { borderLeftColor: theme.gold },
         isHighlighted && s.highlightedRow,
       ]}>
         {/* Drag handle — only on current week */}
@@ -59,7 +59,7 @@ export default function SortableRow({
             {habit.notes ? <Text style={s.notePreview} numberOfLines={1}>{habit.notes}</Text> : null}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => handleHighlight(habit.id)} style={{ paddingRight: 8, paddingVertical: 12 }}>
-            <Text style={{ fontSize: 14, color: isHighlighted ? '#f9e2af' : theme.border, userSelect: 'none' }}>★</Text>
+            <Text style={{ fontSize: 14, color: isHighlighted ? theme.gold : theme.border, userSelect: 'none' }}>★</Text>
           </TouchableOpacity>
         </View>
 
@@ -83,7 +83,7 @@ export default function SortableRow({
         <Text style={s.statCell}>{pw}</Text>
         <Text style={s.statCell}>{habit.perweek}</Text>
         {!isCurrentWeek && (
-          <Text style={[s.statCell, { color: net <= 0 ? '#a6e3a1' : theme.delete, fontFamily: 'Raleway_600SemiBold' }]}>
+          <Text style={[s.statCell, { color: net <= 0 ? theme.success : theme.delete, fontFamily: 'Raleway_600SemiBold' }]}>
             {net}
           </Text>
         )}

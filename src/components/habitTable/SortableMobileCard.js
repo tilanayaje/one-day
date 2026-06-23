@@ -26,7 +26,10 @@ export default function SortableMobileCard({
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 999 : undefined,
     marginBottom: 10,
-    ...(isHighlighted ? { boxShadow: '0 0 0 1.5px #f9e2af, 0 0 16px 2px rgba(249,226,175,0.25)' } : {}),
+    marginLeft: 4,
+    marginRight: 4,
+    borderRadius: 14,
+    ...(isHighlighted ? { boxShadow: `0 0 0 1.5px ${theme.gold}, 0 0 16px 2px ${theme.gold}40` } : {}),
   };
 
   const tw      = count(thisChecks, thisBlocks, habit.id);
@@ -39,8 +42,7 @@ export default function SortableMobileCard({
       <View style={[
         s.mobileCard,
         !isHighlighted && habit.color && { borderLeftColor: habit.color },
-        !isHighlighted && goalMet && { borderLeftColor: '#f9e2af' },
-        isHighlighted && { borderLeftColor: '#f9e2af' },
+        !isHighlighted && goalMet && { borderLeftColor: theme.gold },
       ]}>
         <View style={s.mobileCardHeader}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(habit)}>
@@ -49,13 +51,13 @@ export default function SortableMobileCard({
           </TouchableOpacity>
           <View style={s.mobileCardRight}>
             <TouchableOpacity onPress={() => handleHighlight(habit.id)} style={{ padding: 4 }}>
-              <Text style={{ fontSize: 16, color: isHighlighted ? '#f9e2af' : theme.border, userSelect: 'none' }}>★</Text>
+              <Text style={{ fontSize: 16, color: isHighlighted ? theme.gold : theme.border, userSelect: 'none' }}>★</Text>
             </TouchableOpacity>
-            <Text style={[s.mobileCount, (goalMet || isHighlighted) && { color: '#f9e2af' }]}>
+            <Text style={[s.mobileCount, (goalMet || isHighlighted) && { color: theme.gold }]}>
               {tw}<Text style={s.mobileCountGoal}>/{habit.perweek}</Text>
             </Text>
             {!isCurrentWeek && (
-              <Text style={{ fontSize: 14, fontFamily: 'Raleway_600SemiBold', color: net <= 0 ? '#a6e3a1' : theme.delete }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Raleway_600SemiBold', color: net <= 0 ? theme.success : theme.delete }}>
                 {net > 0 ? '+' : ''}{net}
               </Text>
             )}
