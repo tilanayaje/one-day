@@ -112,7 +112,7 @@ export default function Heatmap({ weeks, monthLabels, maxCount, cellSize, gap, t
             {tooltip.count} check{tooltip.count !== 1 ? 's' : ''}
           </Text>
           <Text style={{ color: theme.textSub, fontSize: 11, fontFamily: 'Raleway_400Regular', marginTop: 2 }}>
-            {tooltip.iso}
+            {tooltip.iso} {new Date(tooltip.iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' })}
           </Text>
         </View>
       )}

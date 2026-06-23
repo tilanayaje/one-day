@@ -41,15 +41,14 @@ function AppNavigator() {
       });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setLoading(false);
-
       if (session?.user?.is_anonymous) {
         const { data: habits } = await supabase.from('habits').select('id').limit(1);
         if (!habits || habits.length === 0) {
           await seedDemoData();
         }
       }
+      setSession(session);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
