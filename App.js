@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { supabase } from './src/db/supabase';
 import { signInWithGoogle, seedDemoData } from './src/db/database';
+import { fetchEncryptionKey, clearEncryptionKey } from './src/db/crypto';
 
 
 import {
@@ -32,7 +33,10 @@ function AppNavigator() {
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
+        if (session) {
+          await fetchEncryptionKey(session);
+        }
         setSession(session);
         setLoading(false);
       })
@@ -46,6 +50,11 @@ function AppNavigator() {
         if (!habits || habits.length === 0) {
           await seedDemoData();
         }
+      }
+      if (session) {
+        await fetchEncryptionKey(session);
+      } else {
+        clearEncryptionKey();
       }
       setSession(session);
       setLoading(false);
